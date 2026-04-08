@@ -434,14 +434,7 @@ ls -lh build-*/bin/
 
 ## 2.8 本章小结
 
-| 概念 | 一句话总结 |
-|------|-----------|
-| **CMake** | 跨平台构建系统生成器，生成平台特定的构建文件 |
-| **LLAMA_CUDA** | CMake 选项，启用 NVIDIA GPU 加速 |
-| **LLAMA_METAL** | CMake 选项，启用 Apple Silicon GPU 加速 |
-| **Release 模式** | 启用编译器优化（-O3），适合生产部署 |
-| **计算能力** | NVIDIA GPU 架构版本，如 80 对应 Ampere |
-| **simple.cpp** | 最小使用示例，展示了 llama.cpp API 的基本用法 |
+本章全面介绍了 llama.cpp 的构建系统和环境配置方法。CMake 作为跨平台构建系统生成器，能够生成适用于不同平台的构建文件。对于 NVIDIA GPU 用户，通过启用 LLAMA_CUDA 选项可以显著加速推理；Apple Silicon 用户则可以通过 LLAMA_METAL 选项利用 Metal 后端。构建时应选择 Release 模式以启用编译器优化（-O3），这适合生产环境部署。对于 NVIDIA GPU，计算能力参数指定了 GPU 架构版本，如 80 对应 Ampere 架构。simple.cpp 提供了最小化的使用示例，清晰展示了 llama.cpp API 的基本用法，是学习入门的最佳起点。
 
 **下一步预告**：
 
