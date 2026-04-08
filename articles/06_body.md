@@ -362,6 +362,8 @@ static void ggml_cuda_graph_compute(
 }
 
 @end
+
+这段代码实现了Metal后端，专为Apple Silicon优化。使用Objective-C封装Metal API，包括设备、命令队列、着色器库和管道状态缓存。计算图通过命令缓冲区提交到GPU，支持统一内存架构(零拷贝)，能效比优异。
 ```
 
 **Metal 后端特点**：
@@ -431,6 +433,8 @@ void ggml_backend_sched_alloc_splits(
         sched->tensor_backend[node] = best_backend;
     }
 }
+
+这段代码实现了异构计算调度器。维护可用后端列表，为每个计算节点选择最优后端。调度时综合考虑算子支持、执行成本和数据传输开销，自动实现CPU-GPU混合执行，最大化整体性能。
 ```
 
 ### 6.4.2 CPU-GPU 协作模式
@@ -521,6 +525,8 @@ int main() {
     
     return 0;
 }
+
+这段代码检测并列出系统上所有可用的GGML后端。通过`ggml_backend_get_count`获取后端数量，遍历每个后端并打印名称，帮助用户了解当前系统支持的计算后端(CPU/CUDA/Metal等)。
 ```
 
 ### 练习 2：对比 CPU vs CUDA 性能
@@ -536,6 +542,8 @@ int main() {
 
 # 混合版本（前 20 层在 GPU）
 ./llama-bench -m model.gguf -ngl 20
+
+这组命令对比不同后端的性能表现。分别测试纯CPU(4线程)、全GPU卸载(-ngl 99)和部分GPU卸载(-ngl 20)模式，通过llama-bench工具测量tokens/second指标，帮助选择最优配置。
 ```
 
 分析：
