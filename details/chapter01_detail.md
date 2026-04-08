@@ -143,7 +143,197 @@ cmake .. -DGGML_VULKAN=ON
     --repeat-penalty 1.1
 ```
 
-### 1.1.3 最简单的使用示例
+### 1.1.3 VSCode 开发环境配置
+
+为了方便阅读 llama.cpp 源码并进行调试，推荐配置 VSCode 开发环境。
+
+#### 必备插件安装
+
+| 插件 | 用途 | 插件ID |
+|-----|------|--------|
+| C/C++ | 语法高亮、IntelliSense、调试 | ms-vscode.cpptools |
+| CMake Tools | CMake 项目管理与构建 | ms-vscode.cmake-tools |
+| CMake | CMake 语法高亮 | twxs.cmake |
+
+#### c_cpp_properties.json 配置
+
+在项目根目录创建 `.vscode/c_cpp_properties.json`：
+
+```json
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/ggml/include",
+                "${workspaceFolder}/common",
+                "${workspaceFolder}/src"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "GGML_USE_CPU"
+            ],
+            "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        },
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/ggml/include",
+                "${workspaceFolder}/common",
+                "${workspaceFolder}/src"
+            ],
+            "defines": [
+                "_DEBUG",
+                "GGML_USE_CPU"
+            ],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        },
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/ggml/include",
+                "${workspaceFolder}/common",
+                "${workspaceFolder}/src"
+            ],
+            "defines": [
+                "_DEBUG",
+                "GGML_USE_METAL"
+            ],
+            "compilerPath": "/usr/bin/clang++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-arm64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
+```
+
+#### settings.json 推荐配置
+
+在项目根目录创建 `.vscode/settings.json`：
+
+```json
+{
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.configureSettings": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+    },
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.intelliSenseCacheSize": 2048,
+    "C_Cpp.intelliSenseMemoryLimit": 4096,
+    "files.associations": {
+        "*.h": "c",
+        "*.c": "c",
+        "*.cpp": "cpp",
+        "*.hpp": "cpp"
+    },
+    "search.exclude": {
+        "**/build": true,
+        "**/bin": true,
+        "**/models": true,
+        "**/.git": true
+    },
+    "editor.formatOnSave": true,
+    "C_Cpp.formatting": "clangFormat"
+}
+```
+
+#### launch.json 调试配置
+
+在项目根目录创建 `.vscode/launch.json`：
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug llama-cli",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/Debug/llama-cli.exe",
+            "args": [
+                "-m", "${workspaceFolder}/models/model.gguf",
+                "-p", "Hello",
+                "-n", "32"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/msys64/mingw64/bin/gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            "name": "Debug simple example",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/Debug/llama-simple.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/msys64/mingw64/bin/gdb.exe",
+            "preLaunchTask": "CMake: build"
+        }
+    ]
+}
+```
+
+#### 代码浏览技巧
+
+**跳转到定义**：
+- `F12` 跳转到符号定义
+- `Ctrl+Shift+O` 查看当前文件符号大纲
+- `Ctrl+T` 全局符号搜索
+
+**常用快捷键**：
+| 快捷键 | 功能 |
+|-------|------|
+| `Ctrl+P` | 快速打开文件 |
+| `Ctrl+Shift+F` | 全局搜索 |
+| `Ctrl+Shift+G` | 查看 Git 历史 |
+| `F5` | 开始调试 |
+| `F9` | 切换断点 |
+| `F10` | 单步跳过 |
+| `F11` | 单步进入 |
+
+**浏览源码建议**：
+1. 从 `include/llama.h` 开始，了解公共 API
+2. 使用 `Ctrl+T` 搜索关键函数如 `llama_decode`、`ggml_mul_mat`
+3. 右键点击符号选择 `查找所有引用` 理解调用关系
+
+---
+
+### 1.1.4 最简单的使用示例
 
 **源码位置**：`examples/simple/simple.cpp` (第1-100行)
 
