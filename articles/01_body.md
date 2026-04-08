@@ -39,11 +39,15 @@ git clone --recursive https://github.com/ggerganov/llama.cpp.git
 cd llama.cpp
 ```
 
+这段命令从GitHub克隆llama.cpp仓库并进入项目目录。`--recursive`参数确保同时拉取GGML子模块，这是项目必需的依赖组件。
+
 如果已经克隆了仓库但缺少子模块，可以使用以下命令补全：
 
 ```bash
 git submodule update --init --recursive
 ```
+
+此命令用于补全克隆时遗漏的子模块。当仓库已克隆但缺少GGML等子模块时，执行此命令可初始化并递归更新所有子模块。
 
 编译过程使用 CMake 构建系统，这是现代 C++ 项目的标准做法。最基础的 CPU 版本编译只需要两条命令：
 
@@ -51,6 +55,8 @@ git submodule update --init --recursive
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release -j
 ```
+
+这组命令用于构建CPU版本的llama.cpp。第一行生成Release模式的构建配置，第二行执行编译并使用所有可用CPU核心(`-j`)加速构建，生成优化后的可执行文件。
 
 第一条命令在 `build` 目录下生成构建配置文件，指定 Release 模式以获得优化后的性能。第二条命令执行实际编译，`-j` 参数让编译器使用所有可用的 CPU 核心并行编译，显著缩短编译时间。
 
@@ -61,12 +67,16 @@ cmake -B build -DGGML_CUDA=ON
 cmake --build build --config Release -j
 ```
 
+这组命令启用CUDA后端支持进行构建。`-DGGML_CUDA=ON`选项启用NVIDIA GPU加速，适合配备NVIDIA显卡的环境，可显著提升推理性能。
+
 类似地，Apple Silicon 用户应该启用 Metal 后端以利用 Apple 芯片的神经网络引擎：
 
 ```bash
 cmake -B build -DGGML_METAL=ON
 cmake --build build --config Release -j
 ```
+
+这组命令启用Metal后端支持进行构建。`-DGGML_METAL=ON`选项启用Apple Silicon芯片的GPU加速，适合macOS和iOS设备，可利用Apple芯片的统一内存架构。
 
 其他支持的 GPU 后端还包括 Vulkan（跨平台开放标准）、SYCL（Intel oneAPI 生态）和 ROCm（AMD GPU）。这种多后端架构是 llama.cpp 的核心设计优势之一，它允许同一套代码在不同硬件平台上获得最佳性能。
 
