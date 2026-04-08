@@ -59,7 +59,8 @@ struct llama_vocab {
     llama_token token_eos() const;  // 结束符
     llama_token token_unk() const;  // 未知词
 };
-```
+
+这段代码定义了llama_vocab词表结构，包含token数据结构（文本、分数、属性）和核心查询方法（text_to_token将文本转为token，get_token_data获取token信息），以及获取特殊token（BOS/EOS/UNK）的便捷方法。
 
 **Token属性定义**：
 ```cpp
@@ -72,7 +73,8 @@ enum llama_token_attr {
     LLAMA_TOKEN_ATTR_BYTE         = 1 << 4,  // 字节token（用于BPE）
     LLAMA_TOKEN_ATTR_UNUSED       = 1 << 5,
 };
-```
+
+这段代码定义了token的属性枚举，包括普通token、未知token、控制token（如EOS）、用户自定义token、字节token（用于BPE字节回退）等属性标志，用于区分不同类型token的特殊处理方式。
 
 ### 13.1.2 预分词类型
 
@@ -89,7 +91,8 @@ enum llama_vocab_pre_type {
     LLAMA_VOCAB_PRE_TYPE_KIMI_K2         = 37,  // Kimi K2
     // ... 更多类型
 };
-```
+
+这段代码定义了预分词类型枚举，不同模型使用不同的预分词策略，如LLAMA3风格、DeepSeek、Falcon、GPT-2、Qwen2、Kimi K2等，每种类型对应特定的正则表达式切分规则。
 
 **不同预分词类型的区别**：
 
@@ -168,6 +171,8 @@ std::pair<int, int> find_best_merge_pair(
     return best;
 }
 ```
+
+这段代码实现了BPE分词的核心算法。首先进行预分词将文本切分为单词，然后对每个单词进行字节编码，接着迭代查找最佳字节对（分数最高的合并对）并执行合并，直到无法继续合并为止，最终将字节序列转换为token ID。
 
 **BPE分词示例**：
 ```
@@ -248,7 +253,8 @@ std::vector<llama_token> llama_vocab::tokenize_spm(
     std::reverse(result.begin(), result.end());
     return result;
 }
-```
+
+这段代码实现了SentencePiece分词算法，使用Viterbi动态规划算法进行解码。首先规范化文本，然后计算每个位置的最佳分割分数（dp数组），记录前驱token（prev数组），最后回溯得到最优token序列。
 
 ### 13.2.3 预分词处理
 
@@ -293,7 +299,8 @@ std::vector<std::string> unicode_regex_split(
 
     return bpe_words;
 }
-```
+
+这段代码实现了基于正则表达式的预分词处理。首先将UTF-8文本转换为codepoints数组，然后依次应用每个正则表达式进行切分，优先使用优化的自定义实现，如果不支持则回退到std::regex，最后将切分结果转换回字符串列表。
 
 **常见预分词正则**：
 
@@ -329,7 +336,8 @@ struct llama_vocab {
     llama_token token_fim_suf() const;  // 后缀标记
     llama_token token_fim_mid() const;  // 中间标记
 };
-```
+
+这段代码展示了llama_vocab中特殊token的获取方法，包括基本特殊token（BOS/EOS/EOT/UNK/PAD）、对话相关token（换行符、分隔符）以及FIM代码补全token（前缀/后缀/中间标记）。
 
 ### 13.3.2 特殊Token添加策略
 
@@ -366,6 +374,8 @@ int32_t llama_vocab::tokenize(
     return n_tokens;
 }
 ```
+
+这段代码实现了完整的tokenize函数，处理特殊token的添加逻辑。首先根据配置添加BOS token，然后执行主分词逻辑，再根据配置添加EOS token，最后将结果复制到输出缓冲区，返回实际生成的token数量。
 
 **不同模型的特殊Token策略**：
 
