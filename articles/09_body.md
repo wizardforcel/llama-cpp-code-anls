@@ -218,6 +218,8 @@ static struct ggml_cgraph * llm_build_llama(
 
     return graph;
 }
+
+这段代码实现了Llama架构的完整计算图构建。流程包括：1)创建token嵌入；2)循环遍历每层Transformer，依次构建RMSNorm、Q/K/V投影、RoPE位置编码、注意力计算、残差连接、SwiGLU FFN；3)输出层归一化和LM Head；4)最终构建前向计算图。
 ```
 
 ### 9.2.2 多头注意力实现
