@@ -67,6 +67,9 @@ struct kv_layer {
     std::vector<ggml_tensor *> k_stream;  // 每流的K视图
     std::vector<ggml_tensor *> v_stream;  // 每流的V视图
 };
+
+这段代码定义了KV缓存层的结构，每个Transformer层对应一个kv_layer，包含该层的K和V缓存张量，以及为每个流（stream）创建的K/V视图，用于多序列场景下的数据隔离。
+
 ```
 
 **内存布局图解**：
@@ -113,6 +116,9 @@ public:
     bool pos_add(uint32_t i, llama_pos delta); // 增加位置偏移
     void pos_div(uint32_t i, int d);           // 位置除法（用于YaRN）
 };
+
+这段代码定义了KV缓存单元格管理类，每个token在缓存中对应一个cell，该类提供了查询cell状态（是否为空、所属序列、位置信息）和操作cell（设置位置、添加/移除序列归属、清空、位置偏移等）的接口。
+
 ```
 
 **Cell状态图解**：
@@ -215,6 +221,8 @@ llama_kv_cache::llama_kv_cache(
         ctxs_bufs.emplace_back(std::move(ctx), buf);
     }
 }
+
+这段代码实现了KV缓存的构造函数。流程包括：1)初始化每个流的cell数组和头指针；2)建立序列到流的映射关系；3)为每层Transformer创建K/V张量（考虑GPU卸载和流视图）；4)为所有上下文分配后端缓冲区并初始化为零。
 ```
 
 ### 11.2.2 内存占用计算
