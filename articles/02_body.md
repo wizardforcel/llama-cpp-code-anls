@@ -95,6 +95,8 @@ sudo apt install -y nvidia-cuda-toolkit
 sudo apt install -y libopenblas-dev
 ```
 
+这组命令在Ubuntu/Debian系统上安装llama.cpp开发所需依赖。包括基础编译工具链(build-essential)、构建系统(cmake)、版本控制(git)、Python环境及可选的CUDA工具包和OpenBLAS加速库。
+
 ### 2.1.4 macOS 环境配置
 
 ```bash
@@ -107,6 +109,8 @@ xcode-select --install
 # 安装依赖
 brew install cmake git python@3.11
 ```
+
+这组命令在macOS系统上配置开发环境。`xcode-select --install`安装Apple命令行工具，`brew install`使用Homebrew包管理器安装CMake、Git和Python等必要依赖。
 
 ---
 
@@ -152,6 +156,8 @@ if (LLAMA_BUILD_EXAMPLES)
     add_subdirectory(examples)  # 示例程序
 endif()
 ```
+
+这是llama.cpp项目的顶层CMakeLists.txt配置示例。它定义了项目基本信息、可选构建选项(CUDA/Metal/Vulkan/SYCL后端)以及子目录结构，采用模块化设计使各组件可独立构建。
 
 **分层设计的好处**：
 - `ggml/` 可独立使用（纯张量计算）
@@ -202,6 +208,8 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . --config Release -j$(nproc)
 ```
 
+这组命令展示Linux/macOS上的标准构建流程。包括源码克隆、创建独立构建目录(Out-of-Source)、配置Release优化模式，并使用所有CPU核心(`-j$(nproc)`)并行编译加速。
+
 **Windows 差异**：
 
 ```cmd
@@ -209,6 +217,8 @@ mkdir build && cd build
 cmake .. -G "Visual Studio 17 2022" -A x64
 cmake --build . --config Release -j
 ```
+
+这是Windows上使用Visual Studio生成器的构建命令。`-G "Visual Studio 17 2022"`指定使用VS2022生成器，`-A x64`指定64位架构，生成可在Windows平台运行的可执行文件。
 
 ### 2.3.2 CUDA 版本编译（高性能款）
 
@@ -228,6 +238,8 @@ cmake .. -DLLAMA_CUDA=ON \
 cmake --build . --config Release -j
 ```
 
+这组命令启用CUDA后端进行构建。`-DLLAMA_CUDA=ON`开启NVIDIA GPU支持，`-DCMAKE_CUDA_ARCHITECTURES`指定支持的GPU计算能力版本(70=Turing, 80=Ampere等)，确保生成的代码兼容目标显卡。
+
 **计算能力说明**：
 - 70 = Turing (V100, T4)
 - 75 = Turing (RTX 20 系列)
@@ -243,6 +255,8 @@ cmake .. -DLLAMA_METAL=ON
 
 cmake --build . --config Release -j
 ```
+
+这组命令启用Metal后端进行构建。`-DLLAMA_METAL=ON`开启Apple Metal GPU支持，适合macOS和iOS设备，可充分利用Apple Silicon的统一内存架构和神经网络引擎。
 
 **Metal 的优势**：
 1. **统一内存**：CPU/GPU 共享内存，无需拷贝
@@ -267,6 +281,8 @@ huggingface-cli download \
     tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf \
     --local-dir ./models
 ```
+
+这组命令使用HuggingFace Hub下载预训练模型。首先安装huggingface-hub工具，然后下载TinyLlama-1.1B模型的Q4_K_M量化版本到本地models目录，适合测试和学习使用。
 
 ### 2.4.2 运行 llama-cli
 
@@ -346,6 +362,8 @@ int main(int argc, char** argv) {
 option(LLAMA_AVX2 "llama: use AVX2" ON)
 option(LLAMA_AVX512 "llama: use AVX-512" OFF)
 ```
+
+这段CMake配置控制x86 CPU指令集优化选项。默认启用AVX2(支持2013年后的Intel/AMD处理器)，禁用AVX-512(仅高端CPU支持)，以平衡性能和兼容性。AVX-512可能导致CPU降频。
 
 **原因**：
 1. **普及度**：AVX2 从 Haswell（2013）开始普及，AVX-512 仅高端 CPU 支持
