@@ -1435,21 +1435,9 @@ column -s, -t results.csv
 
 ## 本课小结
 
-| 工具 | 用途 | 典型命令 | 输出 |
-|-----|------|---------|------|
-| llama-tokenize | 分词调试 | `-m model -p "text" --ids` | Token列表 |
-| llama-embedding | 嵌入生成 | `-m model -p "text" --pooling mean` | 向量 |
-| llama-perplexity | 质量评估 | `-m model -f test.txt` | PPL分数 |
-| gguf | 文件信息 | `gguf-dump model.gguf` | 元数据 |
-| gguf-split | 文件分割 | `--split input.gguf output` | 多个GGUF |
-| convert_lora_to_gguf.py | LoRA转换 | `--input lora/ --output adapter.gguf` | GGUF |
+本课深入解析了llama.cpp的辅助工具及其典型用法。llama-tokenize用于分词调试，典型命令为 `-m model -p "text" --ids`，输出Token列表。llama-embedding用于嵌入生成，典型命令为 `-m model -p "text" --pooling mean`，输出向量表示。llama-perplexity用于质量评估，典型命令为 `-m model -f test.txt`，输出PPL分数。gguf工具用于查看文件信息，典型命令为 `gguf-dump model.gguf`，输出元数据。gguf-split用于文件分割，典型命令为 `--split input.gguf output`，输出多个GGUF文件。convert_lora_to_gguf.py用于LoRA转换，典型命令为 `--input lora/ --output adapter.gguf`，输出GGUF格式适配器。
 
-**工具选择指南**：
-- **调试模板问题** → llama-tokenize
-- **构建RAG系统** → llama-embedding
-- **评估量化质量** → llama-perplexity
-- **管理大模型文件** → gguf-split
-- **使用社区LoRA** → convert_lora_to_gguf.py
+工具选择指南：调试模板问题推荐使用 llama-tokenize；构建RAG系统推荐使用 llama-embedding；评估量化质量推荐使用 llama-perplexity；管理大模型文件推荐使用 gguf-split；使用社区LoRA推荐使用 convert_lora_to_gguf.py。
 
 ---
 

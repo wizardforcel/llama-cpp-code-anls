@@ -1572,18 +1572,9 @@ cat results.csv
 
 ## 本课小结
 
-| 工具 | 主要用途 | 核心参数 | 输出 |
-|-----|---------|---------|------|
-| llama-cli | 交互式对话 | `-m`模型, `-p`提示, `-cnv`对话模式, `-ngl`GPU层 | 流式文本 |
-| llama-server | HTTP服务 | `-m`模型, `--port`端口, `--host`监听地址 | JSON/SSE |
-| llama-quantize | 模型量化 | `--imatrix`重要性矩阵, `--tensor-type`张量覆盖 | GGUF文件 |
-| llama-bench | 性能测试 | `-m`模型, `-p`提示长度, `-ngl`GPU层, `-r`重复次数 | 性能表格 |
+本课深入解析了llama.cpp的主要CLI工具及其核心参数。llama-cli用于交互式对话，核心参数包括 `-m` 指定模型、`-p` 设置提示、`-cnv` 启用对话模式、`-ngl` 设置GPU层数，输出为流式文本。llama-server提供HTTP服务，核心参数包括 `-m` 指定模型、`--port` 设置端口、`--host` 设置监听地址，输出格式为JSON或SSE。llama-quantize用于模型量化，核心参数包括 `--imatrix` 重要性矩阵和 `--tensor-type` 张量覆盖，输出GGUF格式文件。llama-bench用于性能测试，核心参数包括 `-m` 模型、`-p` 提示长度、`-ngl` GPU层数、`-r` 重复次数，输出性能对比表格。
 
-**选择指南**：
-- **探索/调试** → llama-cli
-- **生产部署** → llama-server
-- **模型分发** → llama-quantize（推荐Q4_K_M或Q5_K_M）
-- **性能优化** → llama-bench（找出最佳配置）
+选择指南：探索/调试场景推荐使用 llama-cli；生产部署场景推荐使用 llama-server；模型分发场景推荐使用 llama-quantize（建议选择Q4_K_M或Q5_K_M量化方案）；性能优化场景推荐使用 llama-bench（用于找出最佳配置）。
 
 ---
 
