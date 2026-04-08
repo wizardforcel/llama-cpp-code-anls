@@ -293,6 +293,8 @@ huggingface-cli download \
     -n 128
 ```
 
+这是运行llama-cli进行文本生成的命令。`-m`指定模型文件路径，`-p`设置提示词，`-n`限制生成128个token，适合快速测试模型是否正常工作。
+
 **参数说明**：
 - `-m`：模型文件路径
 - `-p`：提示词（prompt）
@@ -336,6 +338,8 @@ int main(int argc, char** argv) {
     return 0;
 }
 ```
+
+这是simple.cpp的简化示例，展示llama.cpp API的基本使用流程。包括初始化模型参数、加载模型、创建推理上下文、执行推理循环以及资源清理的完整生命周期管理。
 
 ---
 
@@ -389,6 +393,8 @@ time cmake --build build-cuda --config Release
 ls -lh build-*/bin/
 ```
 
+这组命令用于对比不同后端的构建时间和输出文件大小。`time`测量构建耗时，`ls -lh`列出二进制文件大小，帮助开发者评估不同配置的开销。
+
 ### 练习 2：性能基准测试
 
 使用 llama-bench 测试不同后端的性能：
@@ -396,6 +402,8 @@ ls -lh build-*/bin/
 ```bash
 ./bin/llama-bench -m model.gguf
 ```
+
+此命令运行llama-bench性能测试工具，对指定模型进行基准测试并输出tokens/second等性能指标，用于评估不同硬件配置下的推理速度。
 
 记录不同配置的 `tokens/second` 指标。
 
@@ -408,6 +416,8 @@ ls -lh build-*/bin/
 // 添加 -n 参数支持生成长度
 // 参考 examples/main/main.cpp 的实现
 ```
+
+这段注释指示读者如何扩展simple.cpp示例，添加命令行参数解析功能(提示词-p和生成长度-n)，建议参考main.cpp的实现作为学习示例。
 
 ---
 
