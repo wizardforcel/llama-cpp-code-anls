@@ -564,6 +564,8 @@ struct ggml_tensor * ggml_view_tensor(
 
     return result;
 }
+
+这段代码创建张量视图，实现零拷贝形状变换。新张量与原张量共享同一块内存数据，但可拥有不同的形状或步长。标记GGML_TENSOR_FLAG_VIEW确保释放时不会重复释放内存。
 ```
 
 **典型应用场景**：
@@ -594,6 +596,8 @@ struct ggml_tensor * head_0 = ggml_view_2d(
 );
 
 // head_0 和 full_attn 共享内存
+
+这段代码使用ggml_view_2d创建2D张量切片视图。通过指定偏移量(0)和原张量的行步长，创建了第0个注意力头的视图而不复制数据，是高效实现多头注意力机制的关键技术。
 ```
 
 ### 4.3.3 内存复用策略 —— 智能仓库调度
@@ -616,6 +620,8 @@ ggml_gallocr_alloc_graph(allocr, graph);
 //
 // tmp1 在 op2 执行后就不再需要
 // 因此 result 可以和 tmp1 共用内存
+
+这段代码展示了图级内存分配器的使用。通过分析计算图中张量的生命周期，让不重叠的中间结果共享物理内存，可显著降低大模型推理的内存占用，是实现高效推理的关键优化技术。
 ```
 
 **内存复用图解**：
@@ -740,6 +746,8 @@ struct ggml_tensor * ggml_leaky_relu(
 static void ggml_compute_forward_leaky_relu_f32(...) {
     // 实现 LeakyReLU 计算
 }
+
+这段代码是自定义LeakyReLU激活函数的框架实现。展示了如何定义新算子：创建结果张量、设置操作类型、存储参数到op_params。LeakyReLU在负数区域保持小的梯度(alpha*x)，解决了ReLU的神经元死亡问题。
 ```
 
 ### 练习 3：分析内存使用
