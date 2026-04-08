@@ -340,7 +340,8 @@ llama_kv_cache::slot_info llama_kv_cache::find_slot(
 
     return res;
 }
-```
+
+这段代码实现了KV缓存的槽位查找算法，用于为新的token找到可用的缓存位置。流程包括：1)计算每个序列需要的token数；2)循环遍历缓存查找空闲cell；3)支持SWA窗口外的cell复用；4)可选连续模式要求cell连续排列。
 
 ---
 
@@ -380,7 +381,8 @@ bool llama_kv_cache::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos p1) {
 
     return true;
 }
-```
+
+这段代码实现了序列删除操作seq_rm，用于从KV缓存中移除指定序列的KV数据。流程包括：1)遍历指定范围内的所有cell；2)如果cell属于目标序列，移除其序列归属；3)记录第一个释放的cell位置；4)更新head指针以加速后续槽位查找。
 
 ### 11.4.2 序列操作对比
 

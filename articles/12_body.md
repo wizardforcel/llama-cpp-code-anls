@@ -75,6 +75,8 @@ static bool is_masked_swa(
 }
 ```
 
+这段代码定义了SWA类型枚举和SWA掩码判断函数。函数检查当前查询位置p1与KV位置p0之间的距离是否超过窗口大小n_swa，如果超出则返回true表示需要掩码掉该KV，实现滑动窗口注意力机制。
+
 ### 12.1.3 SWA在KV缓存中的应用
 
 **源码位置**：`src/llama-kv-cache.cpp`（第960-968行）
@@ -93,6 +95,8 @@ if (!can_use && cells.seq_count(idx) == 1) {
     }
 }
 ```
+
+这段代码展示了SWA在槽位查找中的应用。当cell已被占用但只属于单个序列时，检查该cell的位置是否超出SWA窗口范围。如果是，则允许复用该cell，因为SWA注意力不会访问窗口外的KV，从而实现缓存循环复用。
 
 **SWA缓存复用图解**：
 ```
@@ -179,7 +183,8 @@ private:
     std::unique_ptr<llama_kv_cache> kv_base;  // 标准缓存
     std::unique_ptr<llama_kv_cache> kv_swa;   // SWA缓存
 };
-```
+
+这段代码定义了ISWA缓存类，继承自llama_memory_i接口。ISWA维护两个独立的KV缓存实例：kv_base用于非SWA层（全量缓存），kv_swa用于SWA层（滑动窗口缓存），通过层过滤回调决定每层使用哪个缓存。
 
 ### 12.2.3 ISWA架构图解
 
@@ -239,7 +244,8 @@ class llama_kv_cache {
     // 流数量
     const uint32_t n_stream;
 };
-```
+
+这段代码展示了KV缓存中的流概念相关成员。seq_to_stream映射序列ID到流索引；v_cells是每个流的cell数组；v_heads是每个流的头指针用于循环缓冲区；n_stream表示流数量，1表示统一流模式，大于1表示多流模式。
 
 **流模式对比**：
 
