@@ -525,15 +525,7 @@ dot -Tpng graph.dot -o graph.png
 
 ## 9.6 本章小结
 
-| 概念 | 一句话总结 |
-|------|-----------|
-| `llama_build_graph` | 根据架构配置动态构建推理计算图 |
-| `llm_build_llama` | Llama 架构特定的图构建函数 |
-| **注意力层** | Q/K/V 投影 → RoPE → 缓存 → 注意力分数 → Softmax → 加权求和 |
-| **FFN 层** | SwiGLU 结构：SiLU(Wg@x) * (Wu@x) @ Wd |
-| **算子融合** | 合并相邻轻量算子，减少内存访问 |
-| **常量折叠** | 预计算不依赖输入的常量表达式 |
-| `ggml_graph_dump_dot` | 导出 Graphviz 格式，可视化计算图 |
+本章深入解析了计算图构建机制。`llama_build_graph` 函数根据架构配置动态构建推理计算图。`llm_build_llama` 是专为 Llama 架构设计的图构建函数。注意力层的计算流程包括：Q/K/V 投影、RoPE 位置编码、KV 缓存更新、注意力分数计算、Softmax 归一化和加权求和。FFN 层采用 SwiGLU 结构，计算公式为 SiLU(Wg@x) * (Wu@x) @ Wd。算子融合技术合并相邻的轻量算子，减少内存访问次数。常量折叠预计算不依赖输入的常量表达式，提升执行效率。`ggml_graph_dump_dot` 函数可以导出 Graphviz 格式的计算图，便于可视化分析。
 
 **下一步预告**：
 

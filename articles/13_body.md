@@ -643,14 +643,7 @@ hash表开销: ~2 MB
 
 ## 13.8 本章小结
 
-| 概念 | 一句话总结 |
-|------|-----------|
-| **llama_vocab** | 词表管理类，封装tokenize/detokenize |
-| **BPE** | 字节对编码，迭代合并最频繁字符对 |
-| **SPM** | SentencePiece，基于Viterbi解码 |
-| **预分词** | 正则切分，处理Unicode和特殊字符 |
-| **特殊token** | BOS/EOS/UNK等控制token |
-| **Unicode支持** | UTF-8编解码，字符属性查询 |
+本章深入解析了分词器架构。`llama_vocab` 是词表管理类，封装了 tokenize 和 detokenize 功能。BPE（字节对编码）通过迭代合并最频繁的字符对来构建词表。SPM（SentencePiece）基于 Viterbi 算法进行解码，将文本切分为最优的 token 序列。预分词使用正则表达式切分文本，处理 Unicode 和特殊字符。特殊 token 包括 BOS/EOS/UNK 等控制 token，用于标记序列边界和处理未知词。Unicode 支持包括 UTF-8 编解码和字符属性查询，确保多语言文本的正确处理。
 
 **下一步预告**：
 
