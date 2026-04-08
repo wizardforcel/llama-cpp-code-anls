@@ -146,6 +146,8 @@ struct ggml_backend_buffer {
     enum ggml_backend_type type;
     void * base;  // 内存基地址
 };
+
+这段代码定义了后端缓冲区抽象接口。用于统一不同后端(CPU/GPU)的内存管理，提供分配、释放、数据拷贝等操作。base字段指向实际内存地址，可以是主机内存(CPU)或设备内存(GPU)。
 ```
 
 ---
@@ -181,6 +183,8 @@ void ggml_vec_add_f32_avx2(const int n, float * z, const float * x, const float 
         z[i] = x[i] + y[i];
     }
 }
+
+这段代码使用AVX2指令集实现向量加法并行计算。`_mm256_loadu_ps`加载8个float到256位SIMD寄存器，`_mm256_add_ps`单指令完成8个元素的加法，理论加速比达8倍。剩余元素用标量循环处理。
 ```
 
 **SIMD 性能提升**：
@@ -238,6 +242,8 @@ void ggml_compute_forward_mul_mat_f32(
         }
     }
 }
+
+这段代码展示了多线程并行矩阵乘法。将输出矩阵的行维度均匀分配给各线程，每个线程计算指定的行范围[m_start, m_end)，通过并行计算充分利用多核CPU性能，实现近似线性的加速比。
 ```
 
 **并行策略**：
@@ -302,6 +308,8 @@ static void ggml_cuda_graph_compute(
         }
     }
 }
+
+这段代码定义了CUDA后端的核心结构和实现。包含CUDA流(异步执行)、cuBLAS句柄(矩阵乘法优化)、设备信息及内存缓存。graph_compute函数遍历计算图，根据操作类型分派到对应的CUDA内核或cuBLAS库函数执行。
 ```
 
 **CUDA 后端特点**：
