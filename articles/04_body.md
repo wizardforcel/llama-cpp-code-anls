@@ -105,6 +105,8 @@ static void ggml_compute_forward_add(
             GGML_ASSERT(false && "unsupported type for add");
     }
 }
+
+这段代码是加法运算的前向计算分派函数。它从结果张量dst中获取输入(src0/src1)，根据数据类型分派到对应的特定实现(F32/F16/量化等)，实现多态计算。这种设计允许同一代码框架支持多种精度。
 ```
 
 **FP32 具体实现**：
@@ -134,6 +136,8 @@ static void ggml_compute_forward_add_f32(
         dst_data[i] = src0_data[i] + src1_data[i];
     }
 }
+
+这段代码实现了FP32类型的加法计算内核。它将元素均匀分配给多个线程并行处理，通过计算每个线程的起止索引(ir0/ir1)实现负载均衡。实际实现中还包含AVX/SSE等SIMD优化。
 ```
 
 **性能优化要点**：
@@ -168,6 +172,8 @@ struct ggml_tensor * ggml_mul_mat(
 
     return result;
 }
+
+这段代码创建矩阵乘法运算节点。它验证输入矩阵的内维匹配(a的列数等于b的行数)，计算输出形状[M,N]，创建结果张量并记录操作类型为MUL_MAT。矩阵乘法是深度学习中最核心的计算操作。
 ```
 
 **形状计算图解**：
@@ -224,6 +230,8 @@ struct ggml_tensor * ggml_sum(struct ggml_context * ctx, struct ggml_tensor * a)
 
     return result;
 }
+
+这段代码创建求和归约运算节点。它将输入张量的所有元素相加，输出一个标量(1维张量)。归约运算在损失计算、统计聚合等场景中广泛使用。
 ```
 
 **常用归约操作表**：
@@ -251,6 +259,8 @@ static void ggml_compute_forward_sum_f32(...) {
     // 使用原子操作或归约树
     atomic_add(&dst_data[0], local_sum);
 }
+
+这段代码展示了两阶段并行归约算法。第一阶段各线程独立计算局部和，第二阶段通过原子操作或归约树将所有局部和汇总为最终结果，是高效并行归约的经典实现。
 ```
 
 ---
