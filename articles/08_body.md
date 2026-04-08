@@ -99,6 +99,8 @@ struct gguf_header {
     uint64_t metadata_kv_count;  // 元数据键值对数量
 };
 
+这段代码定义了GGUF文件的头部结构。包含魔数(用于文件格式识别)、版本号、张量数量和元数据键值对数量。头部固定24字节，是解析GGUF文件的入口点。
+
 // Header 读取
 bool gguf_read_header(FILE * file, struct gguf_header * header) {
     // ① 读取魔数
@@ -130,6 +132,8 @@ bool gguf_read_header(FILE * file, struct gguf_header * header) {
 
     return true;
 }
+
+这段代码实现了GGUF文件头的读取和验证。首先读取并验证魔数(0x46475547)，然后读取版本号进行兼容性检查，最后读取张量数量和元数据计数。任何步骤失败都会返回false，确保文件格式正确。
 ```
 
 ### 8.1.4 Tensor Info 解析
@@ -155,6 +159,8 @@ struct gguf_tensor_info {
     size_t size;                 // 总字节数
     void * data;                 // 加载后的数据指针
 };
+
+这段代码定义了GGUF文件中单个张量的元信息结构。包含张量名称、维度信息、数据类型、在数据区的偏移量及计算得到的总大小。这些信息存储在文件头部，用于快速定位和数据验证。
 
 // 读取单个张量信息
 bool gguf_read_tensor_info(FILE * file, struct gguf_tensor_info * info) {
@@ -184,6 +190,8 @@ bool gguf_read_tensor_info(FILE * file, struct gguf_tensor_info * info) {
 
     return true;
 }
+
+这段代码实现了GGUF张量信息的读取。依次读取名称长度和名称字符串、维度数量和各维度大小、数据类型及在数据区的偏移量，最后根据类型和维度计算张量总字节数，完成单个张量元数据的解析。
 ```
 
 ### 8.1.5 Metadata 系统

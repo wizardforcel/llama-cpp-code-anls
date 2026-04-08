@@ -309,6 +309,8 @@ struct llm_tensor_names {
     } layer;
 };
 
+这段代码定义了模型张量命名模板结构，统一不同架构的张量命名方式。包括嵌入层、输出层及每层Transformer的注意力(Q/K/V/O投影)和FFN(gate/up/down)张量名称，支持不同模型的权重映射转换。
+
 // Llama 架构的张量名
 static const llm_tensor_names LLM_TENSOR_NAMES_LLAMA = {
     .token_embd = "token_embd",
@@ -344,6 +346,8 @@ static const llm_tensor_names LLM_TENSOR_NAMES_QWEN = {
         .ffn_down = "blk.%d.ffn_down",
     }
 };
+
+这段代码展示了Llama和Qwen架构的具体张量命名配置。两者主要差异在注意力输出投影的命名(Llama用attn_o，Qwen用attn_output)。%d占位符表示层索引，用于生成blk.0.attn_q、blk.1.attn_q等各层张量名称。
 ```
 
 ### 7.3.2 HuggingFace 到 GGUF 的映射
