@@ -314,6 +314,8 @@ static void ggml_compute_forward_silu_f32(
         dst_data[i] = x / (1.0f + expf(-x));
     }
 }
+
+这段代码实现了SiLU(Sigmoid Linear Unit)激活函数，是现代LLM的首选激活函数。公式为SiLU(x)=x*sigmoid(x)，具有平滑非单调特性，相比ReLU有更大的非零梯度区域和更强的表达能力。
 ```
 
 **数值稳定性优化**：
@@ -329,6 +331,8 @@ float sigmoid(float x) {
         return z / (1.0f + z);
     }
 }
+
+这段代码展示了数值稳定的sigmoid实现。当输入为负数时，通过改写公式避免exp(-x)产生大数溢出，提高数值稳定性，是神经网络计算中的常用技巧。
 ```
 
 ### 4.2.2 RMS 归一化 —— 标准化的流水线
@@ -365,6 +369,8 @@ struct ggml_tensor * ggml_rms_norm(
 
     return result;
 }
+
+这段代码创建RMS归一化运算节点。RMSNorm是LayerNorm的简化版，只计算均方根而不减去均值，减少了约30%的计算量。eps参数通过op_params传递，防止除零错误。
 ```
 
 **计算流程详解**：
@@ -402,6 +408,8 @@ static void ggml_compute_forward_rms_norm_f32(
         }
     }
 }
+
+这段代码实现了RMS归一化的FP32计算内核。对每个行向量计算平方和、RMS值，然后归一化。相比LayerNorm省略了减均值步骤，计算更高效，被LLaMA、Mistral等主流模型采用。
 ```
 
 ### 4.2.3 RoPE（旋转位置编码）—— 给物料添加"时间戳"
@@ -442,6 +450,8 @@ struct ggml_tensor * ggml_rope(
 
     return result;
 }
+
+这段代码创建RoPE(旋转位置编码)运算节点。RoPE通过旋转矩阵将位置信息注入注意力计算，支持相对位置编码和长序列外推。多个参数(n_dims/mode/n_ctx等)打包存储在op_params数组中。
 ```
 
 **旋转编码数学原理**：
@@ -498,6 +508,8 @@ struct ggml_tensor * ggml_silu_inplace(struct ggml_context * ctx, struct ggml_te
 
     return result;
 }
+
+这段代码实现了原地(in-place)SiLU激活函数。通过创建视图张量而非新分配内存，结果直接写入输入张量的内存空间。标记GGML_TENSOR_FLAG_INPLACE告知执行器无需分配额外输出缓冲区，可节省50%内存。
 ```
 
 **内存节省示例**：
