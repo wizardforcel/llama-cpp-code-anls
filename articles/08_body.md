@@ -216,6 +216,8 @@ enum gguf_metadata_value_type {
     GGUF_METADATA_TYPE_FLOAT64 = 12,
 };
 
+这段代码定义了GGUF元数据支持的值类型枚举，包含从UINT8到FLOAT64的各种数值类型、布尔、字符串和数组类型，提供灵活的自描述能力。
+
 // 常见的元数据键（标准化命名）
 #define LLM_KV_GENERAL_ARCHITECTURE "general.architecture"
 #define LLM_KV_GENERAL_NAME         "general.name"
@@ -225,6 +227,8 @@ enum gguf_metadata_value_type {
 #define LLM_KV_ATTENTION_HEAD_COUNT "{arch}.attention.head_count"
 #define LLM_KV_ROPE_DIMENSION_COUNT "{arch}.rope.dimension_count"
 #define LLM_KV_ROPE_FREQ_BASE       "{arch}.rope.freq_base"
+
+这些宏定义了GGUF元数据的标准键名，包括通用信息(general.*)和架构特定参数({arch}.*)，确保不同工具间元数据的一致性和互操作性。
 ```
 
 **示例元数据**（Llama2 7B）：
