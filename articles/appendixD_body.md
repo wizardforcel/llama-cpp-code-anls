@@ -653,13 +653,7 @@ cmake -B build -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake
 
 ## 本课小结
 
-| 选项类别 | 关键选项 | 说明 |
-|----------|----------|------|
-| CUDA后端 | `GGML_CUDA`, `GGML_CUDA_FA` | GPU加速 |
-| Metal后端 | `GGML_METAL` | Apple Silicon |
-| CPU优化 | `GGML_NATIVE` | 本地指令集 |
-| 构建控制 | `LLAMA_BUILD_*` | 功能选择 |
-| 调试 | `CMAKE_BUILD_TYPE`, `*_SANITIZE_*` | 开发与调试 |
+本附录整理了CMake构建系统的关键选项。CUDA后端选项包括 `GGML_CUDA` 和 `GGML_CUDA_FA`，用于启用GPU加速。Metal后端选项 `GGML_METAL` 用于支持Apple Silicon芯片。CPU优化选项 `GGML_NATIVE` 启用本地指令集优化。构建控制选项 `LLAMA_BUILD_*` 用于选择需要构建的功能模块。调试选项包括 `CMAKE_BUILD_TYPE` 和 `*_SANITIZE_*`，用于开发与调试场景。
 
 **常用构建命令速查：**
 

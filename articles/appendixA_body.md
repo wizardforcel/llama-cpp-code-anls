@@ -878,14 +878,7 @@ void * thread_func(void * arg) {
 
 ## 本课小结
 
-| API类别 | 核心函数 | 用途 |
-|---------|----------|------|
-| GGML张量 | `ggml_new_tensor_2d`, `ggml_mul_mat` | 底层张量运算 |
-| GGML计算图 | `ggml_build_forward`, `ggml_graph_compute` | 构建执行计算 |
-| 模型加载 | `llama_model_load_from_file` | 加载GGUF模型 |
-| 推理 | `llama_decode` | 执行前向传播 |
-| 分词 | `llama_tokenize`, `llama_token_to_piece` | 文本/token转换 |
-| 采样 | `llama_sampler_chain_add`, `llama_sampler_sample` | 生成token |
+本附录整理了llama.cpp C API的核心函数。GGML张量API包括 `ggml_new_tensor_2d` 和 `ggml_mul_mat` 等函数，用于底层张量运算。GGML计算图API包括 `ggml_build_forward` 和 `ggml_graph_compute`，用于构建和执行计算图。模型加载API的核心函数是 `llama_model_load_from_file`，用于加载GGUF格式模型。推理API的核心函数是 `llama_decode`，执行前向传播。分词API包括 `llama_tokenize` 和 `llama_token_to_piece`，实现文本与token的相互转换。采样API包括 `llama_sampler_chain_add` 和 `llama_sampler_sample`，用于生成token。
 
 **快速参考代码：**
 
