@@ -75,6 +75,8 @@ struct ggml_backend {
     void * context;                  // 后端私有数据
     enum ggml_backend_type type;    // 后端类型标识
 };
+
+这段代码定义了GGML后端抽象接口。通过函数指针表(iface)实现多态，允许不同硬件后端(CPU/CUDA/Metal等)提供统一接口。context字段存储后端私有数据(如CUDA流)，实现接口与实现的分离。
 ```
 
 **设计模式分析**：
@@ -106,6 +108,8 @@ for (auto &backend : available_backends) {
         }
     }
 }
+
+这段代码展示后端能力查询和调度选择。`supports_op`函数检查后端是否支持特定算子，调度器遍历所有可用后端，选择支持该算子且成本最低的后端执行，实现异构计算的自动优化。
 ```
 
 ### 6.1.3 缓冲区抽象 —— 统一内存视图
