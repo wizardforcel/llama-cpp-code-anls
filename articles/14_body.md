@@ -143,7 +143,8 @@ enum llm_chat_template {
     // ... 更多模板
     LLM_CHAT_TEMPLATE_UNKNOWN,          // 未知模板
 };
-```
+
+这段代码定义了llama.cpp支持的所有聊天模板类型枚举，包括ChatML、Llama2（多种变体）、Mistral（多版本）、Phi、Gemma、Llama3、ChatGLM、DeepSeek、Qwen2等多种模板格式，以及未知模板作为兜底。
 
 这个枚举定义了llama.cpp支持的所有聊天模板类型。可以看到，即使是同一个模型家族（如Llama2、Llama3、Mistral），也可能有多个变体。这是因为：
 
@@ -232,7 +233,8 @@ llm_chat_template llm_chat_detect_template(const std::string & tmpl) {
 
     return LLM_CHAT_TEMPLATE_UNKNOWN;
 }
-```
+
+这段代码实现了聊天模板的自动检测功能。首先尝试将输入作为模板名称直接匹配；如果失败，则通过查找特征字符串（如"<|im_start|>"表示ChatML，"[INST]"表示Mistral/Llama2风格）来识别模板类型，返回对应的模板枚举值。
 
 **检测流程详解**：
 

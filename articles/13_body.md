@@ -410,7 +410,8 @@ struct llama_vocab {
             const std::vector<llama_token> & tokens,
                                       bool   special) const;
 };
-```
+
+这段代码定义了反分词接口，token_to_piece将单个token转换为文本片段（支持左侧空格剥离和特殊token控制），detokenize批量将token序列转换回完整文本。
 
 ### 13.4.2 反分词实现
 
@@ -449,7 +450,8 @@ std::string llama_vocab::detokenize(
 
     return result;
 }
-```
+
+这段代码实现了反分词功能，将token序列转换回文本。对于每个token，根据需要跳过控制token，获取token文本，处理BPE字节token，将SentencePiece的空格标记"▁"替换为普通空格，最后拼接所有片段。
 
 ### 13.4.3 反分词示例
 
@@ -509,6 +511,8 @@ struct unicode_cpt_flags {
 unicode_cpt_flags unicode_cpt_flags_from_cpt(uint32_t cpt);
 ```
 
+这段代码定义了Unicode字符属性标志结构，包括数字、字母、分隔符、重音标记、标点、符号、控制字符、空白符、大小写等属性，用于分词时的字符分类和正则匹配。
+
 ### 13.5.2 UTF-8编解码
 
 **源码位置**：`src/unicode.cpp`（第16-65行）
@@ -552,6 +556,8 @@ uint32_t unicode_cpt_from_utf8(const std::string & utf8, size_t & offset) {
     // ... 类似处理
 }
 ```
+
+这段代码实现了UTF-8编码长度查询和UTF-8解码功能。unicode_len_utf8通过查找表根据首字节高位确定编码长度；unicode_cpt_from_utf8处理单字节、双字节、三字节和四字节的UTF-8序列，将多字节序列解码为Unicode码点。
 
 ---
 
