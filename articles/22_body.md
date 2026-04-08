@@ -653,21 +653,9 @@ void download_with_progress(
 
 ## 22.8 本章小结
 
-| 组件 | 功能 | 核心API |
-|-----|------|---------|
-| **arg.cpp** | 命令行解析 | `common_params_parse()` |
-| **download.cpp** | 网络下载 | `common_download_model()` |
-| **console.cpp** | 控制台交互 | `console::readline()` |
-| **log.cpp** | 日志系统 | `LOG_INF()`, `LOG_ERR()` |
-| **chat.cpp** | 聊天模板 | `common_chat_format()` |
-| **sampling.cpp** | 采样封装 | `common_sampler_sample()` |
+本章深入解析了common库的基础组件。arg.cpp负责命令行解析，核心API是 `common_params_parse()`。download.cpp实现网络下载功能，通过 `common_download_model()` 下载模型文件。console.cpp处理控制台交互，提供 `console::readline()` 读取用户输入。log.cpp实现日志系统，使用 `LOG_INF()` 和 `LOG_ERR()` 等宏输出日志。chat.cpp处理聊天模板，核心API是 `common_chat_format()`。sampling.cpp封装采样功能，通过 `common_sampler_sample()` 进行采样。
 
-**common库的设计哲学**：
-
-1. **复用优先**：所有工具共享基础设施
-2. **跨平台**：统一的接口，平台相关的实现
-3. **可扩展**：易于添加新参数和新功能
-4. **开发友好**：C++的高级特性提升开发效率
+common库的设计哲学强调：复用优先，所有工具共享基础设施；跨平台设计，提供统一接口但允许平台相关的实现；可扩展性，易于添加新参数和新功能；开发友好，利用C++的高级特性提升开发效率。
 
 **下一步预告**：
 
