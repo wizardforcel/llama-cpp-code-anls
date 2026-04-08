@@ -74,6 +74,8 @@ enum llm_arch {
     // ... 更多架构持续添加中
     LLM_ARCH_COUNT
 };
+
+这段代码定义了llama.cpp支持的模型架构枚举，包含50+种不同的大语言模型架构。从Llama、Mistral到Qwen、DeepSeek等国产模型，每种架构都有独特的注意力变体、位置编码和归一化方式。
 ```
 
 ### 7.1.2 主流架构特性对比
@@ -140,6 +142,8 @@ struct llama_hparams {
     uint32_t n_embd_head_v;    // 每个 V 头的维度
     uint32_t n_rep;            // GQA 重复次数
 };
+
+这段代码定义了llama模型的超参数结构，包含模型维度(n_vocab/n_embd/n_layer等)、MoE配置、位置编码参数(rope_theta等)、归一化参数及注意力配置。这些参数从GGUF文件读取，决定模型的结构和行为。
 ```
 
 ### 7.2.2 架构配置数据
@@ -215,6 +219,8 @@ static const std::map<llm_arch, llm_arch_info> LLM_ARCH_INFO = {
     },
     // ... 更多架构
 };
+
+这段代码定义了不同模型架构的配置信息映射表。每种架构包含默认超参数(如上下文长度、RoPE theta值)、张量命名模板(如blk.0.attn_q)及特性标志(如SWA、GQA支持)，使llama.cpp能适配各种模型变体。
 ```
 
 ### 7.2.3 GQA（分组查询注意力）配置
@@ -247,6 +253,8 @@ uint32_t llama_hparams::n_rep() const {
     // GQA 重复次数
     return use_gqa() ? n_head / n_head_kv : 1;
 }
+
+这段代码实现了分组查询注意力(GQA)的判断和计算。当n_head_kv < n_head时启用GQA，多个Query头共享一组K/V头，可显著减少KV缓存内存占用。n_rep计算每个KV头需要服务的Query头数量。
 ```
 
 **GQA 内存节省计算**：
