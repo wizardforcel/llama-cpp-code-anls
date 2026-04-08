@@ -341,7 +341,8 @@ int32_t llm_chat_apply_template(
     dest = ss.str();
     return dest.size();
 }
-```
+
+这段代码实现了聊天模板的主应用函数，根据模板类型选择对应的格式化逻辑。函数遍历消息列表，为每条消息添加相应的标记（如ChatML的<|im_start|>role\ncontent<|im_end|>），如果add_ass为true则在末尾添加assistant标记提示模型生成回复。
 
 **函数参数解析**：
 
@@ -374,7 +375,9 @@ case LLM_CHAT_TEMPLATE_CHATML:
         ss << "<|im_start|>assistant\n";
     }
     break;
-```
+}
+
+这段代码实现了ChatML模板的格式化逻辑。为每条消息添加<|im_start|>标记和角色名，换行后添加消息内容，最后以<|im_end|>标记结束。如果add_ass为true，则在末尾添加assistant起始标记以提示模型生成回复。
 
 ChatML是最直观的模板格式。每条消息由三部分组成：
 1. `<|im_start|>` + 角色名（如"user"、"assistant"）
@@ -420,7 +423,8 @@ case LLM_CHAT_TEMPLATE_LLAMA_2_SYS_STRIP: {
     }
     break;
 }
-```
+
+这段代码实现了Llama2模板的格式化逻辑，支持多种变体（基础版、带系统消息、带BOS、去除空白）。使用[INST]和[/INST]包裹用户输入，<<SYS>>包裹系统提示，根据模板变体设置相应的标志位控制输出格式。
 
 Llama2的格式更为复杂，需要处理多种变体：
 
@@ -443,7 +447,9 @@ case LLM_CHAT_TEMPLATE_LLAMA_3:
         ss << "<|start_header_id|>assistant<|end_header_id|>\n\n";
     }
     break;
-```
+}
+
+这段代码实现了Llama3模板的格式化逻辑。每条消息使用<|start_header_id|>标记头部开始，包含角色名，以<|end_header_id|>标记头部结束，后跟两个换行符和修剪后的消息内容，最后以<|eot_id|>标记回合结束。如add_ass为true则添加assistant头部提示生成。
 
 Llama3的格式更加结构化：
 - `<|start_header_id|>`标记头部开始
@@ -492,7 +498,8 @@ case LLM_CHAT_TEMPLATE_MISTRAL_V7_TEKKEN: {
     }
     break;
 }
-```
+
+这段代码实现了Mistral V7模板的格式化逻辑，区分标准版和Tekken版（通过trailing_space控制）。系统消息用[SYSTEM_PROMPT]包裹，用户消息用[INST]包裹，助手回复后直接添加</s>标记结束。
 
 **输出示例**：
 ```
@@ -525,7 +532,9 @@ case LLM_CHAT_TEMPLATE_DEEPSEEK_3:
         ss << LU8("<｜Assistant｜>");
     }
     break;
-```
+}
+
+这段代码实现了DeepSeek-V3模板的格式化逻辑。系统消息直接输出内容加换行；用户消息用<｜User｜>标记包裹；助手消息用<｜Assistant｜>标记开始，以<｜end▁of▁sentence｜>标记结束。LU8宏用于处理UTF-8字符串字面量。
 
 **输出示例**：
 ```
