@@ -383,12 +383,7 @@ llama.cpp 项目采用以下许可证：
 
 ## 本课小结
 
-| 资源类别 | 推荐资源 | 说明 |
-|----------|----------|------|
-| 必读论文 | Attention Is All You Need, LLaMA系列 | 理论基础 |
-| 核心项目 | llama.cpp, GGML, vLLM | 实践参考 |
-| 社区支持 | Discord, GitHub Discussions | 获取帮助 |
-| 学习路径 | 基础→入门→进阶→深入 | 循序渐进 |
+本附录整理了llama.cpp学习资源和学习路径。必读论文包括《Attention Is All You Need》和LLaMA系列论文，提供理论基础。核心项目包括llama.cpp、GGML和vLLM，可作为实践参考。社区支持渠道包括Discord和GitHub Discussions，用于获取帮助和交流。推荐的学习路径遵循循序渐进的原则：从基础到入门，再到进阶，最后深入理解内部实现。
 
 **快速开始清单：**
 
