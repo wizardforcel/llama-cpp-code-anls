@@ -11,25 +11,11 @@
 
 ## 生活类比：高级定制服装店的"格式裁缝"
 
-想象llama-chat是一家**专门定制对话格式的服装店**：
+想象 llama-chat 是一家专门定制对话格式的服装店。聊天模板就是它的服装款式模板：ChatML 款式使用 `<|im_start|>user\n...<|im_end|>` 的标记风格，Llama2 款式使用 `[INST] ... [/INST]` 的方括号包裹，Llama3 款式则使用 `<|start_header_id|>user<|end_header_id|>` 的结构化标记。每种模型都有自己的"款式"，就像每位顾客有不同的身材和审美偏好。
 
-- **聊天模板** = 服装款式模板
-  - ChatML款式：`<|im_start|>user\n...<|im_end|>`
-  - Llama2款式：`[INST] ... [/INST]`
-  - Llama3款式：`<|start_header_id|>user<|end_header_id|>`
-  - 每种模型都有自己的"款式"
+模板检测就像服装店的款式识别系统——它通过特征标记来识别模板类型：看到 `<|im_start|>` 就知道是 ChatML，看到 `[INST]` 就知道是 Llama2 风格，看到 `<|start_header_id|>` 就知道是 Llama3。模板应用则是实际的裁剪缝制过程：将用户的消息按模板格式组装，添加必要的标记和分隔符，最终生成模型可以理解的提示文本。
 
-- **模板检测** = 款式识别系统
-  - 通过特征识别模板类型
-  - 如看到`<|im_start|>`就知道是ChatML
-  - 如看到`[INST]`就知道是Llama2风格
-
-- **模板应用** = 裁剪缝制
-  - 将用户消息按模板格式组装
-  - 添加必要的标记和分隔符
-  - 生成模型可理解的提示文本
-
-就像裁缝需要根据客户选择的面料和款式制作服装，聊天模板需要根据模型类型格式化对话。一件衣服如果款式不对，再贵的面料也穿不出门；同样，如果对话格式不对，再强大的模型也会产生混乱的输出。
+就像裁缝需要根据客户选择的面料和款式制作服装，聊天模板需要根据模型类型格式化对话。一件衣服如果款式不对，再贵的面料也穿不出门；同样，如果对话格式不对，再强大的模型也会产生混乱的输出。这就是聊天模板系统存在的意义——它确保每个模型都能"穿"上合身的对话格式。
 
 ## 源码地图
 
@@ -676,52 +662,12 @@ Granite 4.0使用特殊的`<|tool_call|>`标记来标识工具调用请求，模
 2. Llama3
 3. Mistral-V7
 
-**参考答案**：
-
-1. **ChatML**：
-```
-<|im_start|>system
-Be helpful.<|im_end|>
-<|im_start|>user
-Hi<|im_end|>
-<|im_start|>assistant
-Hello!<|im_end|>
-```
-
-2. **Llama3**：
-```
-<|start_header_id|>system<|end_header_id|>
-
-Be helpful.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Hi<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-Hello!<|eot_id|>
-```
-
-3. **Mistral-V7**：
-```
-[SYSTEM_PROMPT] Be helpful.[/SYSTEM_PROMPT][INST] Hi [/INST] Hello!</s>
-```
-
 ### 练习2：分析模板检测
 
 阅读 `src/llama-chat.cpp` 第88-236行，回答：
 1. 如何区分Mistral-V1和Mistral-V3？
 2. 如何检测Llama2的变体？
 3. 如果模板无法识别会怎样？
-
-**参考答案**：
-
-1. **区分Mistral-V1和V3**：通过检查模板字符串中的空格处理。V1使用" [INST]"（前导空格），V3使用"\"[INST]\""（引号包裹）。
-
-2. **检测Llama2变体**：通过检查三个特征：
-   - 是否包含`<<SYS>>`（支持系统消息）
-   - 是否包含`bos_token + '[INST]`（BOS在内部）
-   - 是否包含`content.strip()`（去除空白）
-
-3. **无法识别时**：返回`LLM_CHAT_TEMPLATE_UNKNOWN`，调用者需要决定如何处理（通常是使用默认模板或报错）。
-
 ### 练习3：设计新模板
 
 假设有一个新模型使用以下格式：
@@ -736,38 +682,6 @@ Hello!<|eot_id|>
 2. 实现apply_template逻辑
 3. 添加检测规则
 
-**参考答案**：
-
-```cpp
-// 1. 在llama-chat.h中添加枚举值
-enum llm_chat_template {
-    // ... 其他模板
-    LLM_CHAT_TEMPLATE_CUSTOM_BRACKET,  // 新模板
-    LLM_CHAT_TEMPLATE_UNKNOWN,
-};
-
-// 2. 在apply_template中添加实现
-case LLM_CHAT_TEMPLATE_CUSTOM_BRACKET:
-    for (auto message : chat) {
-        std::string role(message->role);
-        if (role == "system") {
-            ss << "[SYSTEM]" << message->content << "[/SYSTEM]\n";
-        } else if (role == "user") {
-            ss << "[USER]" << message->content << "[/USER]\n";
-        } else if (role == "assistant") {
-            ss << "[ASSISTANT]" << message->content << "[/ASSISTANT]\n";
-        }
-    }
-    if (add_ass) {
-        ss << "[ASSISTANT]";
-    }
-    break;
-
-// 3. 在detect_template中添加检测
-if (tmpl_contains("[SYSTEM]") && tmpl_contains("[USER]") && tmpl_contains("[ASSISTANT]")) {
-    return LLM_CHAT_TEMPLATE_CUSTOM_BRACKET;
-}
-```
 
 ## 14.8 本章小结
 
@@ -775,6 +689,17 @@ if (tmpl_contains("[SYSTEM]") && tmpl_contains("[USER]") && tmpl_contains("[ASSI
 
 聊天模板系统的设计哲学包括：零依赖设计，不引入 Jinja2 等外部库，保持 llama.cpp 的轻量级特性；启发式检测机制，通过特征字符串匹配实现高效的模板识别；精确实现策略，为每种模板硬编码格式化逻辑，确保输出正确；灵活扩展能力，通过枚举和 switch-case 支持新模板的添加。就像裁缝需要了解每种面料的特性才能做出合身的衣服，聊天模板系统需要深入理解每种模型的对话格式才能产生正确的提示。这种对细节的关注是 llama.cpp 能够支持数百种模型的关键。
 
-**下一步预告**：
+本章我们一起学习了以下概念：
 
-在第15章，我们将探索Unicode文本处理——理解llama.cpp如何处理多语言文本、特殊字符和复杂的编码问题。
+| 概念 | 解释 |
+|------|------|
+| llm_chat_template | 聊天模板类型枚举，定义 ChatML/Llama2/Llama3/Mistral 等所有支持的对话格式 |
+| 模板检测 | 通过特征字符串匹配自动识别 Jinja2 模板对应的格式类型 |
+| 模板应用 | 将消息列表按模板格式组装为模型可理解的提示文本 |
+| add_ass | 控制是否在末尾添加 assistant 标记，提示模型开始生成回复 |
+| 启发式匹配 | 零依赖的模板识别方案，用字符串包含检测替代完整的 Jinja2 解析 |
+| 模板变体 | 同一模型家族有多个变体（如 Llama2 有 4 种），通过 bool 标志区分特性 |
+
+**下一章预告**：
+
+下一章中，我们将学习 Unicode 文本处理，理解 llama.cpp 如何处理多语言文本、特殊字符和复杂的编码问题。

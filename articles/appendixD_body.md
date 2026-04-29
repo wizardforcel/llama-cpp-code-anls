@@ -19,6 +19,8 @@
 
 ### D.1.1 CUDA后端
 
+以下选项用于配置NVIDIA GPU的CUDA加速支持：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `GGML_CUDA` | BOOL | OFF | 启用CUDA后端支持 |
@@ -72,6 +74,8 @@ cmake -B build -DGGML_CUDA=ON \
 
 ### D.1.2 Metal后端 (Apple Silicon)
 
+以下选项用于配置Apple Silicon芯片的Metal GPU加速：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `GGML_METAL` | BOOL | ON (macOS) | 启用Metal后端 |
@@ -105,6 +109,8 @@ cmake -B build -DGGML_METAL_MACOSX_VERSION_MIN="12.0"
 ---
 
 ### D.1.3 Vulkan后端
+
+以下选项用于配置Vulkan跨平台GPU加速支持：
 
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -142,6 +148,8 @@ cmake -B build -DGGML_VULKAN=ON \
 
 ### D.1.4 SYCL后端 (Intel GPU)
 
+以下选项用于配置Intel GPU的SYCL加速支持：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `GGML_SYCL` | BOOL | OFF | 启用SYCL后端 |
@@ -172,6 +180,8 @@ cmake -B build -DGGML_SYCL=ON -DGGML_SYCL_F16=ON
 
 ### D.1.5 OpenCL后端
 
+以下选项用于配置OpenCL通用GPU加速支持，特别适用于Android和嵌入式设备：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `GGML_OPENCL` | BOOL | OFF | 启用OpenCL后端 |
@@ -188,6 +198,8 @@ cmake -B build -DGGML_SYCL=ON -DGGML_SYCL_F16=ON
 ---
 
 ### D.1.6 BLAS后端
+
+以下选项用于配置CPU端的BLAS线性代数加速库：
 
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -222,6 +234,8 @@ cmake -B build -DGGML_BLAS=ON \
 
 ### D.1.7 RPC后端
 
+以下选项用于启用远程过程调用支持，实现分布式推理：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `GGML_RPC` | BOOL | OFF | 启用RPC（远程过程调用）后端 |
@@ -243,6 +257,8 @@ cmake -B build -DGGML_RPC=ON
 ## D.2 功能选项
 
 ### D.2.1 核心功能
+
+以下选项用于控制CPU指令集优化和架构特定代码生成：
 
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -270,6 +286,8 @@ cmake -B build -DGGML_CPU_ARM_ARCH="armv8.2-a+fp16"
 ---
 
 ### D.2.2 llama.cpp特定选项
+
+以下选项用于控制llama.cpp各功能模块的编译开关：
 
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -308,6 +326,8 @@ cmake -B build -DLLAMA_BUILD_WEBUI=OFF
 
 ### D.2.3 量化支持
 
+以下选项用于控制量化相关的实验性功能：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `GGML_QKK_64` | BOOL | OFF | 使用64位K-quant（实验性） |
@@ -318,6 +338,8 @@ cmake -B build -DLLAMA_BUILD_WEBUI=OFF
 
 ### D.3.1 编译器警告
 
+以下选项用于控制编译时的警告级别和严格程度：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `LLAMA_ALL_WARNINGS` | BOOL | ON | 启用所有编译器警告 |
@@ -327,6 +349,8 @@ cmake -B build -DLLAMA_BUILD_WEBUI=OFF
 | `GGML_FATAL_WARNINGS` | BOOL | ${LLAMA_FATAL_WARNINGS} | GGML警告视为错误 |
 
 ### D.3.2 Sanitizer
+
+以下选项用于启用运行时检测工具，帮助发现内存错误、数据竞争和未定义行为：
 
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -357,6 +381,8 @@ cmake -B build -DLLAMA_SANITIZE_UNDEFINED=ON
 
 ### D.3.3 调试信息
 
+以下选项控制构建类型和调试信息的生成：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `CMAKE_BUILD_TYPE` | STRING | Release | 构建类型 |
@@ -374,6 +400,8 @@ cmake -B build -DLLAMA_SANITIZE_UNDEFINED=ON
 
 ### D.4.1 Windows
 
+以下选项用于Windows平台的特定构建配置：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `BUILD_SHARED_LIBS` | BOOL | ON | 构建共享库 |
@@ -389,6 +417,8 @@ cmake -B build -G "Visual Studio 17 2022" -A x64
 ```
 
 ### D.4.2 macOS/iOS
+
+以下选项用于Apple平台的部署目标和架构配置：
 
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -409,6 +439,8 @@ cmake -B build \
 
 ### D.4.3 Android
 
+以下选项用于Android NDK交叉编译配置：
+
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `CMAKE_ANDROID_ARCH_ABI` | STRING | - | Android ABI |
@@ -426,6 +458,8 @@ cmake -B build \
 ```
 
 ### D.4.4 WebAssembly
+
+以下选项用于Emscripten/WebAssembly目标平台的构建配置：
 
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -651,9 +685,42 @@ cmake -B build -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake
 
 ---
 
+## 动手练习
+
+1. 在一个有NVIDIA GPU的系统上，分别配置并构建三个版本：纯CPU（无后端）、CUDA基础版（`GGML_CUDA=ON`）、CUDA全功能版（`GGML_CUDA=ON -DGGML_CUDA_FA=ON -DGGML_CUDA_FA_ALL_QUANTS=ON`）。用同一个模型对比三个版本的推理速度（tokens/s），记录编译时间和二进制文件大小。
+
+2. 使用`CMAKE_TOOLCHAIN_FILE`设置一个针对ARM64 Linux的交叉编译环境。编写一个简单的toolchain.cmake文件，指定交叉编译器路径和目标系统，成功构建后在ARM设备（或QEMU模拟器）上运行并验证。
+
+3. 在Debug构建类型下，依次启用AddressSanitizer、ThreadSanitizer和UndefinedBehaviorSanitizer，运行llama.cpp的测试套件（`ctest --test-dir build`），分析每种sanitizer报告的问题类型，编写一份简短的调试报告。
+
+---
+
+## 设计中的取舍
+
+### 为什么使用CMake而非其他构建系统？
+
+llama.cpp选择CMake作为构建系统，是在"跨平台覆盖范围"和"生态成熟度"之间做出的务实选择。CMake几乎支持所有目标平台——Windows（MSVC/MinGW）、Linux（GCC/Clang）、macOS（Xcode/Makefile）、Android（NDK）、iOS、WebAssembly（Emscripten），这正是llama.cpp"随处运行"理念在构建层面的体现。相比之下，Meson虽然更现代但生态尚浅，Bazel在嵌入式/移动端支持不足，Makefile手写维护成本太高。CMake的另一优势是Find/Config模块机制——CUDA、Metal、OpenCL、BLAS等后端依赖可以通过标准化的`find_package`流程自动检测，大幅降低了新手配置门槛。CMake的主要缺点是语法晦涩，但llama.cpp通过清晰的选项命名（`GGML_*`/`LLAMA_*`前缀）和详尽的文档（如本附录所示）有效缓解了这一问题。
+
+### 静态链接 vs 动态链接：如何选择？
+
+静态链接（`BUILD_SHARED_LIBS=OFF`）将所有依赖编译进单一可执行文件，优势是部署简单——一个二进制文件即可运行，无运行时依赖地狱。这对于容器镜像、嵌入式设备、单文件分发场景（如llamafile）是首选。代价是二进制体积增大、内存中的代码段无法在进程间共享、安全补丁需要重新编译。动态链接（`BUILD_SHARED_LIBS=ON`）则相反，库文件可独立升级、多进程共享节省内存，适合系统集成场景（如通过包管理器安装）。llama.cpp的默认策略是动态链接，但在D.5.3节展示的最小体积构建中使用静态链接。实用建议：开发调试阶段使用动态链接（更快的增量编译），生产部署阶段根据场景选择——容器用静态，系统集成用动态。
+
+---
+
 ## 本课小结
 
 本附录整理了CMake构建系统的关键选项。CUDA后端选项包括 `GGML_CUDA` 和 `GGML_CUDA_FA`，用于启用GPU加速。Metal后端选项 `GGML_METAL` 用于支持Apple Silicon芯片。CPU优化选项 `GGML_NATIVE` 启用本地指令集优化。构建控制选项 `LLAMA_BUILD_*` 用于选择需要构建的功能模块。调试选项包括 `CMAKE_BUILD_TYPE` 和 `*_SANITIZE_*`，用于开发与调试场景。
+
+本附录我们一起学习了以下概念：
+
+| 概念 | 解释 |
+|------|------|
+| 后端选项 | 以GGML_前缀开头，选择使用哪种硬件加速后端（CUDA/Metal/Vulkan/SYCL等） |
+| 功能选项 | 以LLAMA_BUILD_前缀开头，控制编译哪些功能模块（common、tests、examples等） |
+| 构建类型 | CMAKE_BUILD_TYPE的四种选择：Debug（调试）、Release（发布）、RelWithDebInfo（优化+调试）、MinSizeRel（最小体积） |
+| Sanitizer | 运行时检测工具（Address/Thread/Undefined），帮助开发者发现内存错误、数据竞争和未定义行为 |
+| 交叉编译 | 使用CMAKE_TOOLCHAIN_FILE为不同目标平台（ARM64、Android、WASM）构建二进制文件 |
+| 静态链接 | 将依赖库编译进可执行文件（BUILD_SHARED_LIBS=OFF），实现单文件分发和简化部署 |
 
 **常用构建命令速查：**
 

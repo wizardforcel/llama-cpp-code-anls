@@ -876,9 +876,42 @@ void * thread_func(void * arg) {
 
 ---
 
+## 动手练习
+
+1. 编写一个最小推理程序：使用C API加载一个GGUF模型，对一个prompt进行分词、执行`llama_decode`、从logits中采样下一个token，最后detokenize并打印结果。比较使用贪心采样和Top-P采样（p=0.9）的输出差异。
+
+2. 参考A.1.4节的调度器示例，编写代码同时初始化CPU后端和CUDA后端（如果可用），创建多后端调度器，观察`ggml_backend_sched_alloc_graph`如何将不同操作分配到不同设备。
+
+3. 设计并实现一个自定义采样链：将温度缩放（temp=0.8）、Top-K（k=40）、Top-P（p=0.9）、Min-P（p=0.05）组合在一起，然后用不同的重复惩罚参数（0.0, 1.0, 1.2）对比同一prompt的生成结果，分析重复惩罚对输出多样性的影响。
+
+---
+
+## 设计中的取舍
+
+### 为什么C API选择返回错误码而非异常？
+
+llama.cpp选择使用C API而非C++异常机制，主要出于两个考虑。首先，C ABI是所有语言绑定的公共基础——Python的ctypes、Go的cgo、Rust的FFI都可以直接调用C函数，而C++异常无法跨越FFI边界传播。如果使用异常，一旦异常逃逸到调用方，会导致未定义行为甚至进程终止。其次，错误码模式（如`llama_decode`返回0表示成功、非0表示具体错误类型）使调用方可以在紧邻调用点的位置处理错误，代码逻辑清晰可追踪。这种设计的代价是调用方必须显式检查每个返回值——但这正是系统编程中"显式胜于隐式"的体现。
+
+### 为什么使用不透明指针而非暴露内部结构？
+
+llama.cpp采用"不透明指针"（opaque pointer）设计——`llama_model`、`llama_context`等类型在头文件中仅为前向声明，内部细节完全隐藏。这种设计有三层意义。第一，API稳定性：内部结构可以随意重构，只要API函数签名不变，下游代码无需修改即可重新编译。第二，ABI兼容性：不同版本间只要API一致，动态库可以互换。第三，安全性：调用方无法绕过API直接修改内部状态，杜绝了一类最难调试的并发bug。代价是调用方不能直接访问字段，必须通过getter/setter函数，但这些函数通常被编译为内联调用，性能损失可忽略。
+
+---
+
 ## 本课小结
 
 本附录整理了llama.cpp C API的核心函数。GGML张量API包括 `ggml_new_tensor_2d` 和 `ggml_mul_mat` 等函数，用于底层张量运算。GGML计算图API包括 `ggml_build_forward` 和 `ggml_graph_compute`，用于构建和执行计算图。模型加载API的核心函数是 `llama_model_load_from_file`，用于加载GGUF格式模型。推理API的核心函数是 `llama_decode`，执行前向传播。分词API包括 `llama_tokenize` 和 `llama_token_to_piece`，实现文本与token的相互转换。采样API包括 `llama_sampler_chain_add` 和 `llama_sampler_sample`，用于生成token。
+
+本附录我们一起学习了以下概念：
+
+| 概念 | 解释 |
+|------|------|
+| ggml_tensor | 核心数据结构，表示多维张量，包含数据指针、形状、步长及计算图连接关系 |
+| ggml_context | 内存池管理器，统一管理张量的生命周期，支持一键释放所有关联资源 |
+| ggml_cgraph | 计算图，描述张量运算的依赖关系，支持前向传播构建和后端调度执行 |
+| llama_decode | 核心推理API，执行单次前向传播，将输入token序列转换为logits输出 |
+| llama_batch | 批处理结构体，封装多个token的ID、位置、序列归属等信息，支持并行推理 |
+| llama_sampler_chain | 采样器链表，支持链式组合温度缩放、Top-K、Top-P、语法约束等多种采样策略 |
 
 **快速参考代码：**
 

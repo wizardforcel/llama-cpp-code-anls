@@ -624,6 +624,8 @@ void llama_debug_check_tensors(llama_context* ctx) {
 }
 ```
 
+数值稳定性检查是排查模型输出异常的第一步。在生产环境中，建议在关键节点加入张量值域检查，及时发现 NaN/Inf 扩散，避免错误在后续计算中放大。
+
 ### 28.3.3 后端兼容性问题
 
 ```cpp
@@ -677,6 +679,8 @@ void check_backend_support() {
     #endif
 }
 ```
+
+后端兼容性诊断可以快速定位 GPU 不可用等问题的根源。在启动时执行后端检测，能够帮助运维人员及时发现驱动问题、CUDA 版本不匹配等配置错误。
 
 ---
 
@@ -1092,7 +1096,19 @@ void example_usage(llama_context* ctx) {
 | GPU不可用 | 驱动问题/CUDA版本不匹配 | nvidia-smi检查，重新编译 |
 | 内存泄漏 | 未释放资源 | Valgrind检测，检查释放代码 |
 
+本章我们一起学习了以下概念：
+
+| 概念 | 解释 |
+|------|------|
+| 日志系统 | llama.cpp的异步分层日志，采用环形缓冲区避免IO阻塞主线程，支持DEBUG/INFO/WARN/ERROR四级 |
+| GDB/LLDB调试 | 程序调试的标准工具，通过断点、单步执行、变量查看定位bug，编译时需启用RelWithDebInfo |
+| AddressSanitizer | 编译时内存检测工具，可自动发现堆缓冲区溢出、释放后使用等内存错误 |
+| 数值稳定性 | 检查张量中是否存在NaN或Inf值，常见于量化溢出、学习率过大、Softmax溢出等场景 |
+| 性能分析 | 通过perf/Nsight工具定位CPU/GPU热点函数，生成火焰图可视化性能瓶颈 |
+
 ---
+
+下一章中，我们将学习集成与部署案例——掌握 llama.cpp 在嵌入式、服务端和多语言绑定等场景的部署方案。
 
 ## 关联阅读
 
