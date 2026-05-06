@@ -29,29 +29,53 @@
 common/
 ├── arg.h/cpp              # 命令行参数解析（3907行）
 │   ├── common_arg         # 参数定义结构
-│   └── gpt_params         # 全局参数结构
+│   ├── gpt_params         # 全局参数结构
+│   ├── llama_example      # 示例类型枚举
+│   └── common_params_parse() # 参数解析主函数
 ├── common.h/cpp           # 通用工具函数（1924行）
 │   ├── common_params      # 参数结构
-│   └── common_init        # 初始化函数
+│   ├── common_init        # 初始化函数
+│   ├── common_get_system_info() # 系统信息
+│   └── common_print_build_info() # 构建信息
 ├── console.h/cpp          # 控制台交互（1166行）
 │   ├── console::readline  # 输入处理
-│   └── console::spinner   # 加载动画
+│   ├── console::spinner   # 加载动画
+│   ├── display_type       # 显示类型枚举
+│   └── console::set_display() # 设置显示类型
 ├── log.h/cpp              # 日志系统（446行）
 │   ├── LOG_INF            # 信息日志宏
-│   └── LOG_ERR            # 错误日志宏
+│   ├── LOG_ERR            # 错误日志宏
+│   ├── ggml_log_level     # 日志级别枚举
+│   └── common_log         # 日志结构
 ├── download.h/cpp         # 网络下载（903行）
 │   ├── common_download_model      # 模型下载
-│   └── common_download_file_single # 文件下载
+│   ├── common_download_file_single # 文件下载
+│   ├── common_download_model_opts # 下载选项结构
+│   └── download_from_hf()         # HF下载
 ├── chat.h/cpp             # 聊天模板处理（2190行）
 │   ├── common_chat_format         # 格式化对话
-│   └── common_chat_parser_params  # 解析参数
+│   ├── common_chat_params         # 格式化参数
+│   ├── common_chat_msg            # 聊天消息结构
+│   └── common_chat_template       # 模板结构
 ├── sampling.h/cpp         # 采样封装（832行）
 │   ├── common_sampler             # 采样器封装
-│   └── llama_sampling_params      # 采样参数
+│   ├── llama_sampling_params      # 采样参数结构
+│   ├── common_sampler_sample()    # 采样执行
+│   ├── common_sampler_accept()    # 接受token
+│   └── common_sampler_reset()     # 重置状态
 ├── speculative.h/cpp      # 投机解码（1074行）
+│   ├── common_speculative         # 投机解码结构
+│   ├── common_speculative_decode() # 投机解码函数
+│   └── llama_speculative()        # 投机解码API
 ├── json-schema-to-grammar.h/cpp  # JSON Schema转换
+│   ├── json_schema_to_grammar()   # Schema转语法
+│   └── common_json_schema_*       # Schema相关函数
 ├── ngram-cache.h/cpp      # N-gram缓存
+│   ├── llama_ngram_cache            # N-gram缓存
+│   └── llama_ngram_cache_*          # 缓存操作函数
 └── llguidance.cpp         # LLGuidance语法约束
+    ├── llg_schedule                 # 调度器
+    └── llg_tokenize                 # 约束分词
 ```
 
 ---

@@ -37,9 +37,16 @@
 ```
 src/llama-graph.h
 ├── llm_build_context          # 图构建上下文
+│   ├── hparams/model/batch    # 输入参数
+│   ├── kv_cache               # KV缓存引用
+│   ├── ctx0                   # GGML上下文
+│   ├── graph                  # 计算图
+│   └── freq_scale/freq_base   # RoPE参数
 ├── llm_build_llama()          # Llama架构构建
 ├── llm_build_transformer()    # Transformer层构建
-└── llm_build_ffn()            # FFN层构建
+├── llm_build_ffn()            # FFN层构建
+├── llm_build_attn()           # 注意力层构建
+└── llm_build_*()              # 其他架构构建函数
 
 src/llama-graph.cpp
 ├── 主构建函数（第1-500行）
@@ -48,21 +55,37 @@ src/llama-graph.cpp
 │   ├── llm_build_llama()
 │   ├── llm_build_mistral()
 │   ├── llm_build_qwen()
-│   └── ...
+│   ├── llm_build_qwen2()
+│   ├── llm_build_qwen3()
+│   ├── llm_build_deepseek()
+│   ├── llm_build_deepseek2()
+│   └── llm_build_*()          # 其他架构
 ├── Transformer层构建（第2000-3000行）
 │   ├── llm_build_attn()       # 注意力
-│   └── llm_build_ffn()        # 前馈网络
+│   │   ├── ggml_mul_mat()     # Q/K/V投影
+│   │   ├── ggml_rope()        # 位置编码
+│   │   ├── ggml_soft_max()    # Softmax
+│   │   └── ggml_mul_mat()     # 输出投影
+│   ├── llm_build_ffn()        # 前馈网络
+│   │   ├── ggml_silu()        # SiLU激活
+│   │   └── ggml_mul_mat()     # 矩阵乘法
+│   └── llm_build_layer()      # 完整层
 └── 工具函数（第3000-4000行）
     └── ggml_graph_*()
 
 ggml/src/ggml.c
 ├── 图构建（第15000-16000行）
-│   └── ggml_build_forward()
+│   ├── ggml_build_forward()   # 构建前向图
+│   ├── ggml_build_forward_expand() # 扩展图
+│   └── ggml_graph_dup()       # 复制图
 ├── 图执行（第16000-17000行）
-│   └── ggml_graph_compute()
+│   └── ggml_graph_compute()   # 执行计算图
+├── 图优化（第16500-16800行）
+│   └── ggml_graph_optimize()  # 优化计算图
 └── 图调试（第17000-18000行）
-    ├── ggml_graph_print()
-    └── ggml_graph_dump_dot()
+    ├── ggml_graph_print()     # 打印图
+    ├── ggml_graph_dump_dot()  # 导出DOT
+    └── ggml_graph_export()    # 导出图
 ```
 
 ---

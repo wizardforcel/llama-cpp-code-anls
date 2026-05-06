@@ -31,28 +31,66 @@ ggml/include/ggml-backend.h
 ├── ggml_backend_t         # 后端句柄
 ├── ggml_backend_buffer_t  # 缓冲区句柄
 ├── ggml_backend_i         # 后端接口定义（C++虚表风格）
+│   ├── get_name()         # 获取后端名称
+│   ├── alloc_buffer()     # 分配缓冲区
+│   ├── set_tensor_async() # 异步设置张量
+│   ├── get_tensor_async() # 异步获取张量
+│   ├── synchronize()      # 同步
+│   ├── graph_compute()    # 计算图执行
+│   └── supports_op()    # 查询是否支持算子
+├── ggml_backend_buffer_i  # 缓冲区接口
+│   ├── free_buffer()      # 释放缓冲区
+│   ├── get_base()         # 获取基地址
+│   ├── get_size()         # 获取大小
+│   └── set_tensor()       # 设置张量数据
+├── ggml_backend_dev_t     # 设备句柄
+├── ggml_backend_event_t   # 事件句柄
 └── 核心API声明
+    ├── ggml_backend_init_by_type() # 按类型初始化
+    ├── ggml_backend_init_by_name()  # 按名称初始化
+    ├── ggml_backend_get_default()   # 获取默认后端
+    └── ggml_backend_sched_*         # 调度器API
 
 ggml/src/ggml-backend.cpp
 ├── 后端注册与管理（第100-500行）
+│   ├── ggml_backend_register()      # 注册后端
+│   └── ggml_backend_get_count()     # 获取后端数量
 ├── 缓冲区管理（第500-1000行）
+│   ├── ggml_backend_buffer_init()   # 初始化缓冲区
+│   └── ggml_backend_buffer_copy()   # 复制缓冲区
 ├── 后端调度器（第1000-2000行）
+│   ├── ggml_backend_sched_new()     # 创建调度器
+│   ├── ggml_backend_sched_alloc_splits() # 分配计算任务
+│   └── ggml_backend_sched_eval_graph()   # 评估计算图
 └── 多后端协调（第2000-3000行）
+    └── ggml_backend_dev_buffer_type()   # 获取设备缓冲区类型
 
 ggml/src/ggml-cpu/
 ├── ggml-cpu.c            # CPU后端实现
 ├── ops.h/ops.cpp         # CPU算子
+├── cpuid.cpp             # CPU特性检测
 └── 各种ISA优化（AVX/AVX2/AVX512/NEON）
+    ├── ggml_vec_dot_q4_0_q8_0()    # Q4_0量化点积
+    └── ggml_compute_forward_*()     # 各种算子实现
 
 ggml/src/ggml-cuda/
 ├── ggml-cuda.cu          # CUDA后端主文件
 ├── 各种算子.cu文件       # CUDA kernels
+├── vulkan.cu             # Vulkan后端
+├── sycl.cpp              # SYCL后端
+├── rpc.cpp               # RPC后端
 └── 设备管理
+    ├── cuda_get_device_count()     # 获取设备数
+    └── cuda_set_device()           # 设置当前设备
 
 ggml/src/ggml-metal/
 ├── ggml-metal.m          # Metal后端（Objective-C）
 ├── ggml-metal.metal      # Metal shaders
 └── 缓冲区管理
+
+ggml/src/ggml-vulkan/
+├── ggml-vulkan.cpp       # Vulkan后端实现
+└── shaders/              # Vulkan shaders
 ```
 
 ---

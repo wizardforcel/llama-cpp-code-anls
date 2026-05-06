@@ -45,7 +45,25 @@ src/llama-vocab.h
 │   └── 核心API
 │       ├── tokenize()       # 文本→tokens
 │       ├── detokenize()     # tokens→文本
-│       └── token_to_piece() # 单个token→文本
+│       ├── token_to_piece() # 单个token→文本
+│       ├── token_bos/eos()  # 特殊token获取
+│       └── text_to_token()  # 文本查token
+├── enum llama_vocab_type    # 词表类型
+│   ├── LLAMA_VOCAB_TYPE_SPM # SentencePiece
+│   ├── LLAMA_VOCAB_TYPE_BPE # Byte-Pair Encoding
+│   ├── LLAMA_VOCAB_TYPE_WPM # WordPiece
+│   └── LLAMA_VOCAB_TYPE_UGM # Unigram
+├── enum llama_vocab_pre_type # 预分词类型
+│   ├── LLAMA_VOCAB_PRE_TYPE_DEFAULT
+│   ├── LLAMA_VOCAB_PRE_TYPE_LLAMA3
+│   ├── LLAMA_VOCAB_PRE_TYPE_GPT2
+│   ├── LLAMA_VOCAB_PRE_TYPE_QWEN2
+│   └── LLAMA_VOCAB_PRE_TYPE_KIMI_K2
+└── enum llama_token_attr    # Token属性
+    ├── LLAMA_TOKEN_ATTR_NORMAL
+    ├── LLAMA_TOKEN_ATTR_CONTROL
+    ├── LLAMA_TOKEN_ATTR_BYTE
+    └── LLAMA_TOKEN_ATTR_UNKNOWN
 
 src/llama-vocab.cpp
 ├── 加载实现 (第1-1000行)    # 从GGUF加载词表
@@ -55,9 +73,20 @@ src/llama-vocab.cpp
 └── 工具函数 (第4000-5000行) # 辅助功能
 
 src/unicode.h/cpp
-├── unicode_cpt_flags        # Unicode字符属性
+├── enum unicode_cpt_flags   # Unicode字符属性
+│   ├── LETTER               # 字母
+│   ├── NUMBER               # 数字
+│   ├── PUNCTUATION          # 标点
+│   └── WHITESPACE           # 空白
 ├── unicode_regex_split()    # Unicode正则切分
-└── UTF-8编解码              # 多字节字符处理
+├── unicode_cpt_from_utf8()  # UTF-8解码
+└── unicode_cpt_to_utf8()    # UTF-8编码
+
+include/llama.h
+├── enum llama_vocab_type    # 词表类型（同上）
+├── enum llama_token_type    # Token类型
+├── enum llama_token_attr    # Token属性（同上）
+└── llama_token_*            # 分词相关API
 ```
 
 ---

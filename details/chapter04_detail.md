@@ -26,22 +26,51 @@
 ```
 ggml/src/ggml.c
 ├── 基础运算（15000-16000行）
-│   ├── ggml_add()          # 张量加法
-│   ├── ggml_mul()          # 张量乘法
-│   ├── ggml_scale()        # 缩放
-│   └── ggml_sum()          # 求和
+│   ├── ggml_add()           # 张量加法
+│   ├── ggml_add_inplace()   # 原地加法
+│   ├── ggml_mul()           # 张量乘法
+│   ├── ggml_scale()         # 缩放
+│   ├── ggml_sum()           # 求和
+│   ├── ggml_mean()          # 平均值
+│   ├── ggml_max()           # 最大值
+│   ├── ggml_argmax()        # 最大索引
+│   └── ggml_repeat()        # 重复
 ├── 矩阵运算（16000-17000行）
-│   ├── ggml_mul_mat()      # 矩阵乘法 GEMM
-│   └── ggml_out_prod()     # 外积
+│   ├── ggml_mul_mat()       # 矩阵乘法 GEMM
+│   ├── ggml_out_prod()      # 外积
+│   ├── ggml_transpose()     # 转置
+│   └── ggml_cont()          # 转连续
 ├── 神经网络运算（17000-18000行）
-│   ├── ggml_silu()         # SiLU激活
-│   ├── ggml_rms_norm()     # RMS归一化
-│   ├── ggml_rope()         # 旋转位置编码
-│   └── ggml_soft_max()     # Softmax
-└── 内存优化（18000-19000行）
-    ├── ggml_view_tensor()  # 视图创建
-    ├── ggml_reshape()      # 重塑形状
-    └── ggml_permute()      # 维度置换
+│   ├── ggml_silu()          # SiLU激活
+│   ├── ggml_silu_inplace()  # 原地SiLU
+│   ├── ggml_gelu()          # GELU激活
+│   ├── ggml_relu()          # ReLU激活
+│   ├── ggml_rms_norm()      # RMS归一化
+│   ├── ggml_norm()          # LayerNorm
+│   ├── ggml_rope()          # 旋转位置编码
+│   ├── ggml_soft_max()      # Softmax
+│   ├── ggml_diag_mask_inf() # 对角掩码
+│   └── ggml_alibi()         # ALiBi位置编码
+├── 内存优化（18000-19000行）
+│   ├── ggml_view_tensor()   # 视图创建
+│   ├── ggml_view_1d/2d/3d() # 多维视图
+│   ├── ggml_reshape()       # 重塑形状
+│   ├── ggml_reshape_2d/3d() # 多维重塑
+│   ├── ggml_permute()       # 维度置换
+│   └── ggml_cont()          # 转连续
+└── 量化运算（19000-20000行）
+    ├── ggml_quantize()      # 量化
+    └── ggml_dequantize()    # 反量化
+
+ggml/include/ggml.h
+├── enum ggml_op             # 操作类型枚举
+│   ├── GGML_OP_ADD/MUL/SUB/DIV
+│   ├── GGML_OP_MUL_MAT
+│   ├── GGML_OP_SILU/GELU/RELU
+│   ├── GGML_OP_NORM/RMS_NORM
+│   ├── GGML_OP_ROPE
+│   └── GGML_OP_SOFT_MAX
+└── 算子API声明
 ```
 
 ---

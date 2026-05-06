@@ -37,8 +37,28 @@
 ```
 src/llama-context.h
 ├── llama_context_params     # 上下文参数
+│   ├── n_ctx/n_batch/n_ubatch     # 批次大小配置
+│   ├── n_threads/n_threads_batch  # 线程配置
+│   ├── rope_scaling_type          # RoPE缩放类型
+│   ├── pooling_type               # 池化类型
+│   ├── attention_type             # 注意力类型
+│   ├── flash_attn_type            # Flash Attention类型
+│   ├── type_k/type_v              # KV缓存数据类型
+│   ├── yarn_ext_factor            # YaRN扩展因子
+│   ├── samplers/n_samplers        # 采样器配置
+│   └── offload_kqv/op_offload     # 卸载配置
 ├── llama_context            # 上下文结构体
-└── llama_batch              # 批次结构体
+│   ├── llama_cparams        # 计算参数
+│   ├── llama_memory         # 内存分配器
+│   ├── llama_batch          # 批次数据
+│   ├── llama_kv_cache       # KV缓存
+│   ├── ggml_cgraph          # 计算图
+│   └── t_perf               # 性能统计
+├── llama_batch              # 批次结构体
+│   ├── token/embd           # 输入数据
+│   ├── pos/n_seq_id/seq_id  # 位置/序列信息
+│   └── logits               # 输出标记
+└── llama_input_buffers      # 输入缓冲区
 
 src/llama-context.cpp
 ├── llama_new_context()      # 创建上下文（第1-300行）
@@ -52,10 +72,26 @@ src/llama-batch.h/cpp
 └── llama_batch_add()        # 添加token到批次
 
 src/llama-sampler.cpp
-├── 贪心采样
-├── Top-K采样
-├── Top-P采样
-└── 重复惩罚
+├── llama_sampler_init_greedy()      # 贪心采样
+├── llama_sampler_init_dist()        # 分布采样
+├── llama_sampler_init_top_k()       # Top-K采样
+├── llama_sampler_init_top_p()       # Top-P采样
+├── llama_sampler_init_min_p()       # Min-P采样
+├── llama_sampler_init_typical()     # Typical采样
+├── llama_sampler_init_temp()        # 温度缩放
+├── llama_sampler_init_penalties()   # 重复惩罚
+├── llama_sampler_init_mirostat()    # Mirostat采样
+├── llama_sampler_init_xtc()         # XTC采样
+├── llama_sampler_chain_*            # 采样器链
+└── llama_sampler_apply()            # 应用采样器
+
+include/llama.h
+├── llama_token_data         # Token数据（logit/p）
+├── llama_token_data_array   # Token数组
+├── llama_logit_bias         # Logit偏置
+├── llama_sampler_chain_params  # 采样器链参数
+├── llama_sampler_seq_config    # 序列采样器配置
+└── llama_chat_message       # 聊天消息
 
 examples/save-load-state/
 └── save-load-state.cpp      # 状态保存示例
@@ -67,34 +103,57 @@ examples/save-load-state/
 
 ### 10.1.1 llama_context_params 配置参数
 
-**源码位置**：`include/llama.h` (第200-300行)
+**源码位置**：`include/llama.h` (第330-382行)
 
 ```c
 struct llama_context_params {
     // 上下文窗口
     uint32_t n_ctx;             // 最大上下文长度（默认512）
-    uint32_t n_batch;           // 最大批处理大小（默认512）
+    uint32_t n_batch;           // 逻辑最大批处理大小（默认512）
     uint32_t n_ubatch;          // 物理批处理大小（用于分块）
+    uint32_t n_seq_max;         // 最大序列数（用于循环模型）
 
     // 线程配置
     uint32_t n_threads;         // CPU线程数（生成）
     uint32_t n_threads_batch;   // CPU线程数（提示处理）
 
     // RoPE配置
-    uint8_t  rope_scaling_type; // RoPE扩展类型
+    enum llama_rope_scaling_type rope_scaling_type; // RoPE扩展类型
     float    rope_freq_base;    // RoPE基数覆盖
     float    rope_freq_scale;   // RoPE缩放覆盖
     float    yarn_ext_factor;   // YaRN扩展因子
     float    yarn_attn_factor;  // YaRN注意力因子
     float    yarn_beta_fast;    // YaRN快速beta
     float    yarn_beta_slow;    // YaRN慢速beta
+    uint32_t yarn_orig_ctx;     // YaRN原始上下文大小
 
-    // 类型配置
-    enum llama_pooling_type pooling_type;  // 池化类型（用于嵌入）
+    // 注意力配置
+    enum llama_pooling_type pooling_type;     // 池化类型（用于嵌入）
+    enum llama_attention_type attention_type; // 注意力类型
+    enum llama_flash_attn_type flash_attn_type; // Flash Attention类型
 
-    // 内存配置
+    // KV缓存数据类型
+    enum ggml_type type_k;      // K缓存数据类型[EXPERIMENTAL]
+    enum ggml_type type_v;      // V缓存数据类型[EXPERIMENTAL]
+
+    // 回调函数
+    ggml_backend_sched_eval_callback cb_eval;     // 评估回调
+    void * cb_eval_user_data;                     // 回调用户数据
+    ggml_abort_callback abort_callback;           // 中止回调
+    void * abort_callback_data;                   // 中止回调数据
+
+    // 采样器链配置[EXPERIMENTAL]
+    struct llama_sampler_seq_config * samplers;
+    size_t                            n_samplers;
+
+    // 标志
     bool flash_attn;            // 使用Flash Attention
+    bool embeddings;            // 提取嵌入向量
+    bool offload_kqv;           // 将KQV卸载到GPU
     bool no_perf;               // 不收集性能数据
+    bool op_offload;            // 将主机张量操作卸载到设备
+    bool swa_full;              // 使用完整SWA缓存
+    bool kv_unified;            // 使用统一KV缓存
 };
 ```
 

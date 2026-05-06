@@ -34,9 +34,40 @@
 ```
 ggml/include/ggml.h (第1-900行)
 ├── struct ggml_tensor       # 张量结构体
+│   ├── type                 # 数据类型(enum ggml_type)
+│   ├── backend              # 所属后端
+│   ├── ne[GGML_MAX_DIMS]    # 各维度元素数
+│   ├── nb[GGML_MAX_DIMS]    # 各维度字节步长
+│   ├── op                   # 产生此张量的操作
+│   ├── src[]                # 输入张量
+│   ├── data                 # 数据指针
+│   └── name                 # 名称
 ├── struct ggml_cgraph       # 计算图结构体
+│   ├── n_nodes/n_leafs      # 节点/叶子数
+│   ├── nodes[]/leafs[]      # 节点/叶子数组
+│   └── order                # 评估顺序
 ├── struct ggml_context      # 上下文结构体
+│   ├── mem_data/mem_size    # 内存池
+│   ├── n_objects            # 对象数量
+│   └── objects_begin/end    # 对象链表
+├── enum ggml_type           # 数据类型枚举
+│   ├── GGML_TYPE_F32/F16    # 浮点类型
+│   ├── GGML_TYPE_Q4_0/Q4_1  # 4位量化
+│   ├── GGML_TYPE_Q5_0/Q5_1  # 5位量化
+│   ├── GGML_TYPE_Q8_0       # 8位量化
+│   └── GGML_TYPE_IQ*        # 改进量化
+├── enum ggml_op             # 操作类型枚举
+│   ├── GGML_OP_ADD/MUL      # 基础运算
+│   ├── GGML_OP_MUL_MAT      # 矩阵乘法
+│   ├── GGML_OP_SILU/RELU    # 激活函数
+│   ├── GGML_OP_NORM/RMS_NORM# 归一化
+│   └── GGML_OP_ROPE         # 旋转位置编码
 └── 核心API声明
+    ├── ggml_init()          # 初始化上下文
+    ├── ggml_new_tensor*()   # 创建张量
+    ├── ggml_build_forward() # 构建前向图
+    ├── ggml_graph_compute() # 执行计算图
+    └── ggml_*()             # 各种算子
 
 ggml/src/ggml.c
 ├── ggml_new_tensor()        # 创建张量（第5000-5500行）
@@ -46,7 +77,8 @@ ggml/src/ggml.c
 
 ggml/src/ggml-alloc.c
 ├── ggml_gallocr_new()       # 创建分配器
-└── ggml_gallocr_alloc_graph() # 为计算图分配内存
+├── ggml_gallocr_alloc_graph() # 为计算图分配内存
+└── ggml_gallocr_free()      # 释放分配器
 ```
 
 ---

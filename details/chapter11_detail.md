@@ -39,17 +39,52 @@ src/llama-kv-cache.h
 ├── llama_kv_cache           # KV缓存主类
 │   ├── slot_info            # 槽位信息（token到cell的映射）
 │   ├── kv_layer             # 每层KV存储结构
+│   ├── kv_cell              # 单个cell结构
 │   └── stream_copy_info     # 跨流复制信息
 ├── llama_kv_cache_context   # 缓存操作上下文
+├── llama_kv_cells           # Cell管理类
+│   ├── is_empty()           # 是否为空
+│   ├── seq_has()            # 是否属于某序列
+│   ├── pos_get/set()        # 位置操作
+│   ├── seq_add/rm()         # 序列归属操作
+│   └── pos_add/div()        # 位置偏移操作
 └── 序列操作API (seq_rm/cp/keep/add/div)
+    ├── llama_kv_cache_seq_rm()      # 删除序列
+    ├── llama_kv_cache_seq_cp()      # 复制序列
+    ├── llama_kv_cache_seq_keep()  # 保留序列
+    └── llama_kv_cache_seq_add()     # 平移位置
 
 src/llama-kv-cache.cpp
 ├── 构造函数 (第79-315行)    # 初始化缓存结构和内存分配
+│   ├── llama_kv_cache()     # 构造函数
+│   └── ~llama_kv_cache()    # 析构函数
 ├── 序列操作 (第317-595行)   # seq_rm/cp/keep/add/div实现
+│   ├── seq_cp()             # 序列复制
+│   ├── seq_rm()             # 序列删除
+│   └── seq_div()            # 位置除法
 ├── 批次准备 (第614-727行)   # prepare/find_slot/apply_ubatch
+│   ├── find_slot()          # 查找空闲槽位
+│   └── update()             # 更新缓存
 ├── 缓存更新 (第729-803行)   # update/build_graph_shift
+│   ├── build_rope_shift()   # 构建RoPE偏移图
+│   └── build_k_shift()      # 构建K缓存偏移
 ├── 张量访问 (第1132-1182行) # get_k/get_v/cpy_k/cpy_v
+│   ├── get_k()              # 获取K张量
+│   ├── get_v()              # 获取V张量
+│   └── cpy_k/cpy_v()        # 拷贝K/V
 └── 状态管理 (第1832-2053行) # state_write/state_read
+    ├── state_write()        # 写入状态
+    └── state_read()         # 读取状态
+
+src/llama-kv-cells.h
+├── llama_kv_cell            # Cell结构
+│   ├── pos                  # 位置
+│   ├── seq_id               # 序列ID集合
+│   └── has_seq()            # 是否属于某序列
+└── llama_kv_cells           # Cell数组管理
+    ├── resize()             # 调整大小
+    ├── get_used()           # 获取已使用数量
+    └── get_occupied()       # 获取占用数量
 ```
 
 ---

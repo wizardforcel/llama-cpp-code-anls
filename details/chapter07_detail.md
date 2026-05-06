@@ -26,7 +26,13 @@
 
 ```
 src/llama-arch.h
-├── enum llm_arch            # 架构枚举（50+种模型）
+├── enum llm_arch            # 架构枚举（100+种模型）
+├── enum llm_kv              # GGUF元数据键枚举
+├── enum llm_tensor          # 张量类型枚举
+├── enum llm_tensor_layer    # 层张量类型枚举
+├── struct LLM_KV            # 元数据键构建器
+├── struct LLM_TN            # 张量名称构建器
+├── struct llm_tensor_info   # 张量信息结构
 ├── struct llm_arch_info     # 架构信息
 └── llm_arch_from_string()   # 字符串转枚举
 
@@ -38,7 +44,17 @@ src/llama-arch.cpp
 └── 架构检测逻辑（第2000-3000行）
 
 src/llama-hparams.h/cpp
-├── llama_hparams            # 超参数结构体
+├── enum llama_expert_gating_func_type  # 专家门控函数类型
+├── enum llama_swa_type                 # 滑动窗口注意力类型
+├── struct llama_hparams_posnet         # PosNet参数（WavTokenizer）
+├── struct llama_hparams_convnext       # ConvNeXt参数
+├── struct llama_hparams                # 主超参数结构体
+│   ├── n_embd_head_k_swa/n_embd_head_v_swa  # SWA头维度
+│   ├── n_rot_full/n_rot_swa               # RoPE维度
+│   ├── n_embd_head_k_mla_impl            # MLA实现维度
+│   ├── expert_gating_func                # MoE门控函数
+│   ├── swa_type/swa_layers               # SWA配置
+│   └── ssm_d_conv/ssm_d_state            # 状态空间模型参数
 └── 加载和验证逻辑
 
 src/llama-model-loader.cpp
@@ -52,37 +68,135 @@ src/llama-model-loader.cpp
 
 ### 7.1.1 架构枚举全景
 
-**源码位置**：`src/llama-arch.h` (第50-150行)
+**源码位置**：`src/llama-arch.h` (第13-140行)
 
 ```cpp
 enum llm_arch {
-    LLM_ARCH_UNKNOWN = 0,
-
-    // Llama家族
-    LLM_ARCH_LLAMA = 1,           // Meta Llama 1/2/3
-    LLM_ARCH_LLAMA4 = 2,          // Llama 4 (未来)
-
-    // Mistral家族
-    LLM_ARCH_MISTRAL = 10,        // Mistral 7B
-    LLM_ARCH_MIXTRAL = 11,        // Mixtral MoE
-
-    // 国产模型
-    LLM_ARCH_QWEN = 20,           // 通义千问
-    LLM_ARCH_QWEN2 = 21,          // Qwen2
-    LLM_ARCH_BAICHUAN = 22,       // 百川
-    LLM_ARCH_YI = 23,             // 零一万物
-
-    // 其他知名模型
-    LLM_ARCH_GPTNEOX = 30,        // GPT-NeoX (Pythia)
-    LLM_ARCH_FALCON = 31,         // Falcon
-    LLM_ARCH_STARCODER = 32,      // StarCoder
-    LLM_ARCH_PERSIMMON = 33,      // Persimmon
-    LLM_ARCH_REFACT = 34,         // Refact
-    LLM_ARCH_BERT = 35,           // BERT (嵌入模型)
-    LLM_ARCH_NOMIC_BERT = 36,     // Nomic Embed
-
-    // 更多架构...
-    LLM_ARCH_COUNT
+    LLM_ARCH_LLAMA,           // Meta Llama 1/2/3
+    LLM_ARCH_LLAMA4,          // Llama 4
+    LLM_ARCH_DECI,            // Deci
+    LLM_ARCH_FALCON,          // Falcon
+    LLM_ARCH_BAICHUAN,        // 百川
+    LLM_ARCH_GROK,            // Grok
+    LLM_ARCH_GPT2,            // GPT-2
+    LLM_ARCH_GPTJ,            // GPT-J
+    LLM_ARCH_GPTNEOX,         // GPT-NeoX (Pythia)
+    LLM_ARCH_MPT,             // MPT
+    LLM_ARCH_STARCODER,       // StarCoder
+    LLM_ARCH_REFACT,          // Refact
+    LLM_ARCH_BERT,            // BERT
+    LLM_ARCH_MODERN_BERT,     // ModernBERT
+    LLM_ARCH_NOMIC_BERT,      // Nomic Embed
+    LLM_ARCH_NOMIC_BERT_MOE,  // Nomic BERT MoE
+    LLM_ARCH_NEO_BERT,        // NeoBERT
+    LLM_ARCH_JINA_BERT_V2,    // Jina Embeddings v2
+    LLM_ARCH_JINA_BERT_V3,    // Jina Embeddings v3
+    LLM_ARCH_EUROBERT,        // EuroBERT
+    LLM_ARCH_BLOOM,           // BLOOM
+    LLM_ARCH_STABLELM,        // StableLM
+    LLM_ARCH_QWEN,            // 通义千问
+    LLM_ARCH_QWEN2,           // Qwen2
+    LLM_ARCH_QWEN2MOE,        // Qwen2 MoE
+    LLM_ARCH_QWEN2VL,         // Qwen2 VL
+    LLM_ARCH_QWEN3,           // Qwen3
+    LLM_ARCH_QWEN3MOE,        // Qwen3 MoE
+    LLM_ARCH_QWEN3NEXT,       // Qwen3 Next
+    LLM_ARCH_QWEN3VL,         // Qwen3 VL
+    LLM_ARCH_QWEN3VLMOE,      // Qwen3 VL MoE
+    LLM_ARCH_QWEN35,          // Qwen 3.5
+    LLM_ARCH_QWEN35MOE,       // Qwen 3.5 MoE
+    LLM_ARCH_PHI2,            // Phi-2
+    LLM_ARCH_PHI3,            // Phi-3
+    LLM_ARCH_PHIMOE,          // Phi MoE
+    LLM_ARCH_PLAMO,           // PLaMo
+    LLM_ARCH_PLAMO2,          // PLaMo-2
+    LLM_ARCH_PLAMO3,          // PLaMo-3
+    LLM_ARCH_CODESHELL,       // CodeShell
+    LLM_ARCH_ORION,           // Orion
+    LLM_ARCH_INTERNLM2,       // InternLM2
+    LLM_ARCH_MINICPM,         // MiniCPM
+    LLM_ARCH_MINICPM3,        // MiniCPM3
+    LLM_ARCH_GEMMA,           // Gemma
+    LLM_ARCH_GEMMA2,          // Gemma 2
+    LLM_ARCH_GEMMA3,          // Gemma 3
+    LLM_ARCH_GEMMA3N,         // Gemma 3N
+    LLM_ARCH_GEMMA4,          // Gemma 4
+    LLM_ARCH_GEMMA_EMBEDDING, // Gemma Embedding
+    LLM_ARCH_STARCODER2,      // StarCoder2
+    LLM_ARCH_MAMBA,           // Mamba
+    LLM_ARCH_MAMBA2,          // Mamba2
+    LLM_ARCH_JAMBA,           // Jamba
+    LLM_ARCH_FALCON_H1,       // Falcon H1
+    LLM_ARCH_XVERSE,          // Xverse
+    LLM_ARCH_COMMAND_R,       // Command R
+    LLM_ARCH_COHERE2,         // Cohere2
+    LLM_ARCH_DBRX,            // DBRX
+    LLM_ARCH_OLMO,            // OLMo
+    LLM_ARCH_OLMO2,           // OLMo 2
+    LLM_ARCH_OLMOE,           // OLMoE
+    LLM_ARCH_OPENELM,         // OpenELM
+    LLM_ARCH_ARCTIC,          // Arctic
+    LLM_ARCH_DEEPSEEK,        // DeepSeek
+    LLM_ARCH_DEEPSEEK2,       // DeepSeek-V2
+    LLM_ARCH_DEEPSEEK2OCR,    // DeepSeek OCR
+    LLM_ARCH_CHATGLM,         // ChatGLM
+    LLM_ARCH_GLM4,            // GLM-4
+    LLM_ARCH_GLM4_MOE,        // GLM-4 MoE
+    LLM_ARCH_GLM_DSA,         // GLM-DSA
+    LLM_ARCH_BITNET,          // BitNet
+    LLM_ARCH_T5,              // T5
+    LLM_ARCH_T5ENCODER,       // T5 Encoder
+    LLM_ARCH_JAIS,            // Jais
+    LLM_ARCH_JAIS2,           // Jais2
+    LLM_ARCH_NEMOTRON,        // Nemotron
+    LLM_ARCH_NEMOTRON_H,      // Nemotron-H
+    LLM_ARCH_NEMOTRON_H_MOE,  // Nemotron-H MoE
+    LLM_ARCH_EXAONE,          // EXAONE
+    LLM_ARCH_EXAONE4,         // EXAONE 4
+    LLM_ARCH_EXAONE_MOE,      // EXAONE MoE
+    LLM_ARCH_RWKV6,           // RWKV-v6
+    LLM_ARCH_RWKV6QWEN2,      // RWKV6-Qwen2
+    LLM_ARCH_RWKV7,           // RWKV-v7
+    LLM_ARCH_ARWKV7,          // ARWKV-v7
+    LLM_ARCH_GRANITE,         // Granite
+    LLM_ARCH_GRANITE_MOE,     // Granite MoE
+    LLM_ARCH_GRANITE_HYBRID,  // Granite Hybrid
+    LLM_ARCH_CHAMELEON,       // Chameleon
+    LLM_ARCH_WAVTOKENIZER_DEC,// WavTokenizer
+    LLM_ARCH_PLM,             // PLM
+    LLM_ARCH_BAILINGMOE,      // Bailing MoE
+    LLM_ARCH_BAILINGMOE2,     // Bailing MoE 2
+    LLM_ARCH_DOTS1,           // DOTS-1
+    LLM_ARCH_ARCEE,           // Arcee
+    LLM_ARCH_AFMOE,           // AF MoE
+    LLM_ARCH_ERNIE4_5,        // Ernie 4.5
+    LLM_ARCH_ERNIE4_5_MOE,    // Ernie 4.5 MoE
+    LLM_ARCH_HUNYUAN_MOE,     // Hunyuan MoE
+    LLM_ARCH_HUNYUAN_DENSE,   // Hunyuan Dense
+    LLM_ARCH_SMOLLM3,         // SmolLM3
+    LLM_ARCH_OPENAI_MOE,      // OpenAI MoE
+    LLM_ARCH_LFM2,            // LFM 2
+    LLM_ARCH_LFM2MOE,         // LFM 2 MoE
+    LLM_ARCH_DREAM,           // Dream
+    LLM_ARCH_SMALLTHINKER,    // SmallThinker
+    LLM_ARCH_LLADA,           // LLaDA
+    LLM_ARCH_LLADA_MOE,       // LLaDA MoE
+    LLM_ARCH_SEED_OSS,        // Seed OSS
+    LLM_ARCH_GROVEMOE,        // Grove MoE
+    LLM_ARCH_APERTUS,         // Apertus
+    LLM_ARCH_MINIMAX_M2,      // MiniMax-M2
+    LLM_ARCH_COGVLM,          // CogVLM
+    LLM_ARCH_RND1,            // RND-1
+    LLM_ARCH_PANGU_EMBED,     // Pangu Embedding
+    LLM_ARCH_MISTRAL3,        // Mistral 3
+    LLM_ARCH_MISTRAL4,        // Mistral 4
+    LLM_ARCH_PADDLEOCR,       // PaddleOCR
+    LLM_ARCH_MIMO2,           // MIMO-2
+    LLM_ARCH_STEP35,          // Step-3.5
+    LLM_ARCH_LLAMA_EMBED,     // Llama Embedding
+    LLM_ARCH_KIMI_LINEAR,     // Kimi Linear
+    LLM_ARCH_MAINCODER,       // MainCoder
+    LLM_ARCH_UNKNOWN,
 };
 ```
 
@@ -103,7 +217,7 @@ enum llm_arch {
 
 ### 7.2.1 超参数结构体
 
-**源码位置**：`src/llama-hparams.h` (第1-100行)
+**源码位置**：`src/llama-hparams.h` (第36-165行)
 
 ```cpp
 struct llama_hparams {
@@ -111,28 +225,114 @@ struct llama_hparams {
     uint32_t n_vocab;          // 词表大小
     uint32_t n_ctx_train;      // 训练时的上下文长度
     uint32_t n_embd;           // 嵌入维度（隐藏层大小）
-    uint32_t n_head;           // 注意力头数
-    uint32_t n_head_kv;        // KV头数（GQA时n_head_kv < n_head）
     uint32_t n_layer;          // Transformer层数
-    uint32_t n_ff;             // 前馈网络维度
-
-    // 注意力配置
     uint32_t n_expert;         // MoE专家数量
     uint32_t n_expert_used;    // 每token激活的专家数
 
+    // 注意力头配置（每层可独立配置）
+    std::array<uint32_t, LLAMA_MAX_LAYERS> n_head_arr;    // 每层的Q头数
+    std::array<uint32_t, LLAMA_MAX_LAYERS> n_head_kv_arr; // 每层的KV头数
+    uint32_t n_embd_head_k_full;  // Full Attention的K头维度
+    uint32_t n_embd_head_v_full;  // Full Attention的V头维度
+    uint32_t n_embd_head_k_swa;   // SWA的K头维度
+    uint32_t n_embd_head_v_swa;   // SWA的V头维度
+    uint32_t n_embd_head_k_mla_impl; // MLA实现的K头维度
+    uint32_t n_embd_head_v_mla_impl; // MLA实现的V头维度
+    uint32_t n_rot_full;       // Full Attention的RoPE维度
+    uint32_t n_rot_swa;        // SWA的RoPE维度
+
+    // 前馈网络配置
+    std::array<uint32_t, LLAMA_MAX_LAYERS> n_ff_arr;      // 每层FFN维度
+    uint32_t n_ff_exp;         // 专家FFN扩展维度
+    uint32_t n_ff_shexp;       // 共享专家FFN维度
+    uint32_t n_ff_chexp;       // 块共享专家FFN维度
+    uint32_t n_expert_shared;  // 共享专家数量
+    uint32_t n_expert_groups;  // 专家组数量
+    uint32_t n_group_used;     // 每组使用的专家数
+    uint32_t n_group_experts;  // 每组的专家数
+
+    // MoE门控配置
+    enum llama_expert_gating_func_type {
+        LLAMA_EXPERT_GATING_FUNC_TYPE_NONE = 0,
+        LLAMA_EXPERT_GATING_FUNC_TYPE_SOFTMAX = 1,
+        LLAMA_EXPERT_GATING_FUNC_TYPE_SIGMOID = 2,
+        LLAMA_EXPERT_GATING_FUNC_TYPE_SOFTMAX_WEIGHT = 3,
+    };
+    uint32_t expert_gating_func;   // MoE门控函数类型
+    float    expert_group_scale;   // 专家组缩放因子
+    float    expert_weights_scale; // 专家权重缩放
+    bool     expert_weights_norm;  // 是否归一化专家权重
+    uint32_t moe_every_n_layers;   // MoE层间隔
+    uint32_t moe_latent_size;      // MoE潜在维度
+
     // 位置编码
-    float    rope_theta;       // RoPE基数（默认10000）
-    float    rope_scaling_type;// RoPE扩展类型（NTK/线性）
-    float    rope_scaling_factor; // 扩展因子
+    float    rope_freq_base_train;     // RoPE基数（训练）
+    float    rope_freq_base_train_swa; // SWA的RoPE基数
+    float    rope_freq_scale_train;    // RoPE缩放因子（训练）
+    float    rope_freq_scale_train_swa;// SWA的RoPE缩放因子
+    float    rope_attn_factor;         // RoPE注意力因子
+    float    yarn_ext_factor;          // YaRN扩展因子
+    float    yarn_attn_factor;         // YaRN注意力因子
+    float    yarn_beta_fast;           // YaRN快速beta
+    float    yarn_beta_slow;           // YaRN慢速beta
+    uint32_t n_ctx_orig_yarn;          // YaRN原始上下文大小
+    float    rope_yarn_log_mul;        // YaRN对数乘数
+    std::array<int, 4> rope_sections;  // RoPE分段配置
 
-    // 归一化
-    float    f_norm_eps;       // RMSNorm epsilon
-    float    f_norm_rms_eps;   // RMSNorm专用epsilon
+    // 滑动窗口注意力(SWA)
+    enum llama_swa_type {
+        LLAMA_SWA_TYPE_NONE = 0,
+        LLAMA_SWA_TYPE_STANDARD = 1,
+        LLAMA_SWA_TYPE_CHUNKED = 2,
+        LLAMA_SWA_TYPE_SYMMETRIC = 3,
+    };
+    llama_swa_type swa_type;   // SWA类型
+    uint32_t n_swa;            // SWA窗口大小
+    std::array<uint32_t, LLAMA_MAX_LAYERS> swa_layers; // 每层是否使用SWA
 
-    // 类型标识
-    llm_arch arch;             // 模型架构
-    enum llama_rope_type rope_type; // RoPE类型
-    enum llama_ftype ftype;    // 文件类型（量化方式）
+    // 归一化配置
+    float f_norm_eps;          // LayerNorm epsilon
+    float f_norm_rms_eps;      // RMSNorm epsilon
+    float f_norm_group_eps;    // GroupNorm epsilon
+    bool  swin_norm;           // 是否使用Swin归一化
+    bool  use_par_res;         // 是否使用并行残差连接
+
+    // 数值稳定性
+    float f_attn_logit_softcapping;   // 注意力logit软裁剪
+    float f_router_logit_softcapping; // 路由logit软裁剪
+    float f_final_logit_softcapping;  // 最终logit软裁剪
+
+    // 状态空间模型(SSM)参数
+    uint32_t ssm_d_conv;       // SSM卷积维度
+    uint32_t ssm_d_inner;      // SSM内部维度
+    uint32_t ssm_d_state;      // SSM状态维度
+    uint32_t ssm_dt_rank;      // SSM dt秩
+    uint32_t ssm_n_group;      // SSM组数
+
+    // RWKV参数
+    uint32_t rescale_every_n_layers; // 每隔多少层重缩放
+    uint32_t time_mix_extra_dim;     // time mix额外维度
+    uint32_t time_decay_extra_dim;   // time decay额外维度
+    uint32_t wkv_head_size;          // WKV头大小
+    uint32_t token_shift_count;      // token移位计数
+    uint32_t n_lora_decay;           // LoRA decay维度
+    uint32_t n_lora_iclr;            // LoRA iclr维度
+    uint32_t n_lora_value_res_mix;   // LoRA value残差混合维度
+    uint32_t n_lora_gate;            // LoRA gate维度
+
+    // 特殊模型结构
+    uint32_t n_layer_dense_lead;     // 前导稠密层数
+    uint32_t n_rel_attn_bkts;        // 相对注意力桶数
+    uint32_t n_shortconv_l_cache;    // ShortConv缓存长度
+    uint32_t nextn_predict_layers;   // NTP预测层数
+    uint32_t n_embd_head_kda;        // Kimi Linear KDA维度
+    struct llama_hparams_posnet posnet;       // WavTokenizer PosNet参数
+    struct llama_hparams_convnext convnext;   // WavTokenizer ConvNeXt参数
+
+    // 标志
+    bool vocab_only;           // 仅加载词表
+    bool no_alloc;             // 不分配内存
+    bool rope_finetuned;       // RoPE是否微调过
 };
 ```
 

@@ -34,26 +34,67 @@
 ```
 ggml/include/gguf.h
 ├── struct gguf_context      # GGUF上下文
+│   ├── header               # 文件头
+│   ├── tensor_infos         # 张量信息数组
+│   └── kv_data              # 元数据键值对
 ├── gguf_init_from_file()    # 从文件加载
 ├── gguf_get_tensor_info()   # 获取张量信息
-└── gguf_get_val_str()       # 获取元数据
+├── gguf_get_val_str()       # 获取元数据字符串
+├── gguf_get_val_u32()       # 获取元数据u32
+├── gguf_get_val_f32()       # 获取元数据f32
+└── gguf_get_val_arr()       # 获取元数据数组
 
 ggml/src/gguf.c
 ├── GGUF文件解析（第100-500行）
 ├── Header读取（第200-300行）
+│   └── gguf_read_header()
 ├── Tensor Info解析（第300-400行）
+│   └── gguf_read_tensor_info()
 └── Metadata读取（第400-500行）
+    └── gguf_read_kv()
 
 src/llama-model-loader.h/cpp
 ├── llama_model_loader       # 模型加载器类
+│   ├── gguf_ctx             # GGUF上下文
+│   ├── path_model           # 模型路径
+│   └── mapping_addr         # 内存映射地址
 ├── load()                   # 主加载函数（第1-500行）
+│   ├── gguf_init_from_file()
+│   ├── load_hparams()       # 加载超参数
+│   ├── load_vocab()         # 加载词表
+│   └── load_tensors()       # 加载张量
 ├── 张量验证（第500-1000行）
+│   └── validate_tensor()
 └── 内存映射（第1000-1500行）
+    └── llama_mmap
+
+src/llama-model.h/cpp
+├── llama_model              # 模型结构
+│   ├── hparams              # 超参数
+│   ├── vocab                # 词表
+│   ├── tensors              # 张量数组
+│   ├── layers               # 层数组
+│   └── backends             # 后端数组
+├── llama_layer              # 层结构
+│   ├── attn_norm            # 注意力归一化
+│   ├── wq/wk/wv/wo          # 注意力权重
+│   ├── ffn_norm             # FFN归一化
+│   └── wgate/wup/wdown      # FFN权重
+└── llama_cparams            # 计算参数
 
 src/llama-memory.h/cpp
 ├── llama_memory             # 内存管理基类
 ├── llama_memory_default     # 常规内存管理
-└── llama_memory_hybrid      # 混合内存管理
+├── llama_memory_hybrid      # 混合内存管理
+└── llama_memory_recurrent   # 循环模型内存
+
+src/llama-mmap.h/cpp
+├── llama_mmap               # 内存映射类
+│   ├── addr                 # 映射地址
+│   ├── size                 # 映射大小
+│   ├── llama_mmap()         # 构造函数
+│   └── ~llama_mmap()        # 析构函数
+└── llama_mlock              # 内存锁定类
 ```
 
 ---

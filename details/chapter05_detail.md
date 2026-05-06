@@ -28,26 +28,59 @@
 
 ```
 ggml/include/ggml.h
-├── 量化类型枚举（第200-250行）
-│   └── enum ggml_type { Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ2_XXS... }
-├── 块大小常量（第250-300行）
-│   └── GGML_BLOCK_SIZE, GGML_TYPE_SIZE
+├── 量化类型枚举（第200-350行）
+│   └── enum ggml_type
+│       ├── GGML_TYPE_F32/F16        # 浮点类型
+│       ├── GGML_TYPE_Q4_0/Q4_1      # 4位量化
+│       ├── GGML_TYPE_Q5_0/Q5_1      # 5位量化
+│       ├── GGML_TYPE_Q8_0/Q8_1      # 8位量化
+│       ├── GGML_TYPE_IQ2_XXS/XS/S   # 2位智能量化
+│       ├── GGML_TYPE_IQ3_XXS/XS/M   # 3位智能量化
+│       ├── GGML_TYPE_IQ4_NL/XS      # 4位智能量化
+│       └── GGML_TYPE_TQ1_0/TQ2_0    # TriLM量化
+├── 量化块大小常量（第250-300行）
+│   ├── GGML_QK4_0 (32)              # Q4_0块大小
+│   ├── GGML_QK5_0 (32)              # Q5_0块大小
+│   ├── GGML_QK8_0 (32)              # Q8_0块大小
+│   └── GGML_QK_K (256)              # K-quants块大小
+├── 量化块结构（第300-500行）
+│   ├── block_q4_0 {d, qs[16]}       # Q4_0块结构
+│   ├── block_q4_1 {d, m, qs[16]}    # Q4_1块结构
+│   ├── block_q8_0 {d, qs[32]}       # Q8_0块结构
+│   └── block_qk_k {d, scales, qs[]} # K-quants块
 └── 量化类型特性（第300-350行）
     └── ggml_type_traits
+        ├── blck_size              # 块大小
+        ├── type_size              # 类型大小
+        ├── is_quantized           # 是否量化
+        └── nrows                  # 行数
 
 ggml/src/ggml-quants.c
 ├── 量化函数（第1000-2000行）
 │   ├── quantize_row_q4_0_reference()
 │   ├── quantize_row_q4_1_reference()
-│   └── quantize_row_q8_0_reference()
+│   ├── quantize_row_q5_0_reference()
+│   ├── quantize_row_q8_0_reference()
+│   └── quantize_row_q8_1_reference()
 ├── 反量化函数（第2000-3000行）
 │   ├── dequantize_row_q4_0()
-│   └── dequantize_row_q4_1()
-└── 量化矩阵乘（第3000-5000行）
-    └── ggml_vec_dot_q4_0_q8_0()
+│   ├── dequantize_row_q4_1()
+│   ├── dequantize_row_q5_0()
+│   ├── dequantize_row_q8_0()
+│   └── dequantize_row_q8_1()
+├── 量化矩阵乘（第3000-5000行）
+│   ├── ggml_vec_dot_q4_0_q8_0()
+│   ├── ggml_vec_dot_q4_1_q8_1()
+│   ├── ggml_vec_dot_q5_0_q8_0()
+│   └── ggml_vec_dot_q8_0_q8_0()
+└── K-quants实现（第5000+行）
+    ├── quantize_row_q_k()
+    ├── dequantize_row_q_k()
+    └── ggml_vec_dot_q_k()
 
 src/llama-quant.cpp
-├── llama_model_quantize()  # 模型量化入口
+├── llama_model_quantize()   # 模型量化入口
+├── llama_quantize()         # 量化接口
 └── 量化参数解析
 ```
 

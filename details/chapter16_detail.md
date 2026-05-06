@@ -24,25 +24,40 @@
 
 ```
 src/llama-sampler.cpp          # 采样器核心实现（约3800行）
-  ├── llama_sampler_init_greedy()      # 贪心采样
-  ├── llama_sampler_init_dist()        # 随机分布采样
-  ├── llama_sampler_init_top_k()       # Top-K采样
-  ├── llama_sampler_init_top_p()       # Top-P采样
-  ├── llama_sampler_init_min_p()       # Min-P采样
-  ├── llama_sampler_init_typical()     # Typical采样
-  ├── llama_sampler_init_temp()        # 温度缩放
-  ├── llama_sampler_init_penalties()   # 重复惩罚
-  └── llama_sampler_chain_*            # 采样器链
+  ├── struct llama_sampler_base            # 采样器基类
+  ├── struct llama_sampler_greedy          # 贪心采样器
+  ├── struct llama_sampler_dist            # 分布采样器
+  ├── struct llama_sampler_top_k           # Top-K采样器
+  ├── struct llama_sampler_top_p           # Top-P采样器
+  ├── struct llama_sampler_min_p           # Min-P采样器
+  ├── struct llama_sampler_typical         # Typical采样器
+  ├── struct llama_sampler_temp            # 温度缩放采样器
+  ├── struct llama_sampler_penalties       # 重复惩罚采样器
+  ├── struct llama_sampler_mirostat        # Mirostat采样器
+  ├── struct llama_sampler_xtc             # XTC采样器
+  ├── struct llama_sampler_infill          # Infill采样器
+  ├── struct llama_sampler_grammar         # 语法约束采样器
+  ├── struct llama_sampler_logit_bias      # Logit偏置采样器
+  ├── struct llama_sampler_chain           # 采样器链
+  │   └── llama_sampler_chain_add()        # 添加采样器到链
+  └── llama_sampler_apply()                # 应用采样器
 
 include/llama.h                # C API 声明
-  ├── struct llama_sampler_i           # 采样器接口
-  ├── struct llama_sampler             # 采样器基类
-  └── llama_sampler_init_*             # 各类采样器初始化
+  ├── struct llama_token_data            # Token数据(id/logit/p)
+  ├── struct llama_token_data_array      # Token数据数组
+  ├── struct llama_sampler_i             # 采样器接口
+  ├── struct llama_sampler               # 采样器基类
+  ├── struct llama_sampler_chain_params  # 采样器链参数
+  ├── struct llama_logit_bias            # Logit偏置
+  └── llama_sampler_init_*               # 各类采样器初始化
 
 common/sampling.h/cpp          # 高级采样封装
   ├── common_sampler_init()            # 采样器初始化
   ├── common_sampler_sample()          # 采样执行
-  └── llama_sampling_params            # 采样参数结构
+  ├── llama_sampling_params            # 采样参数结构
+  ├── common_sampler_get_seed()        # 获取采样器种子
+  ├── common_sampler_set_seed()        # 设置采样器种子
+  └── common_sampler_accept()          # 接受token更新状态
 ```
 
 ## 4. 详细章节内容
