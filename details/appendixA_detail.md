@@ -581,3 +581,216 @@ if (ret != 0) {
 - `llama_model` 是线程安全的，可被多个 `llama_context` 共享
 - `llama_context` **不是**线程安全的，每个线程应使用独立上下文
 - 分词 API 是线程安全的
+
+---
+
+## A.5 扩展 API 参考 (llama-ext.h)
+
+`llama-ext.h` 提供了llama.cpp的**扩展API**，包括计算图预留、量化工具函数等。这些API通常用于高级用例和内部工具开发。
+
+### A.5.1 计算图预留
+
+**函数**：`llama_graph_reserve`
+
+**用途**：预留一个新的计算图，有效期直到下次调用
+
+```c
+LLAMA_API struct ggml_cgraph * llama_graph_reserve(
+    struct llama_context * ctx,
+    uint32_t n_tokens,      // token数量
+    uint32_t n_seqs,        // 序列数量
+    uint32_t n_outputs);    // 输出数量
+```
+
+**使用场景**：
+- 预分配计算图以评估内存需求
+- 在不实际运行推理的情况下测试图构建
+
+**示例**：
+
+```c
+// 预留计算图
+struct ggml_cgraph * graph = llama_graph_reserve(ctx, 512, 1, 1);
+if (graph == NULL) {
+    // 预留失败，可能需要减少token数
+}
+
+// 图在下次llama_graph_reserve调用前有效
+// 或在llama_decode等操作后失效
+```
+
+### A.5.2 量化类型工具
+
+**llama_ftype_get_default_type**
+
+获取指定量化格式对应的GGML数据类型：
+
+```c
+LLAMA_API ggml_type llama_ftype_get_default_type(llama_ftype ftype);
+
+// 使用示例
+ggml_type type = llama_ftype_get_default_type(LLAMA_FTYPE_MOSTLY_Q4_0);
+// 返回 GGML_TYPE_Q4_0
+```
+
+**量化状态管理**
+
+```c
+// 初始化量化状态
+LLAMA_API quantize_state_impl * llama_quant_init(
+    const llama_model * model,
+    const llama_model_quantize_params * params);
+
+// 释放量化状态
+LLAMA_API void llama_quant_free(quantize_state_impl * qs);
+```
+
+### A.5.3 量化模型描述
+
+**llama_quant_model_desc** - 用于测试的模型描述结构：
+
+```c
+struct llama_quant_model_desc {
+    const char * architecture;  // 架构名称（如"llama"）
+    uint32_t n_embd;            // 嵌入维度
+    uint32_t n_ff;              // FFN中间层维度
+    uint32_t n_layer;           // 层数
+    uint32_t n_head;            // 注意力头数
+    uint32_t n_head_kv;         // KV头数
+    uint32_t n_expert;          // 专家数量（MoE）
+    uint32_t n_embd_head_k;     // K头维度
+    uint32_t n_embd_head_v;     // V头维度
+};
+
+// 从描述创建模拟模型（用于测试）
+LLAMA_API llama_model * llama_quant_model_from_metadata(
+    const llama_quant_model_desc * desc);
+```
+
+**使用场景**：
+- 在没有实际模型文件的情况下测试量化逻辑
+- 验证量化参数对不同架构的影响
+
+```c
+// 创建测试模型描述
+llama_quant_model_desc desc = {
+    .architecture = "llama",
+    .n_embd = 4096,
+    .n_ff = 11008,
+    .n_layer = 32,
+    .n_head = 32,
+    .n_head_kv = 32,
+    .n_expert = 0,
+    .n_embd_head_k = 128,
+    .n_embd_head_v = 128
+};
+
+// 创建模拟模型
+llama_model * model = llama_quant_model_from_metadata(&desc);
+
+// 测试量化
+quantize_state_impl * qs = llama_quant_init(model, &params);
+// ...
+llama_quant_free(qs);
+llama_model_free(model);
+```
+
+### A.5.4 张量量化判断
+
+**llama_quant_tensor_allows_quantization**
+
+判断指定张量是否允许量化：
+
+```c
+LLAMA_API bool llama_quant_tensor_allows_quantization(
+    const quantize_state_impl * qs,
+    const ggml_tensor * tensor);
+```
+
+**判断依据**：
+- 张量名称（某些张量如bias通常不量化）
+- 张量维度（小张量可能不值得量化）
+- 量化参数配置
+
+### A.5.5 量化类型计算
+
+**llama_quant_compute_types**
+
+为一组张量计算量化类型分配：
+
+```c
+LLAMA_API void llama_quant_compute_types(
+    const quantize_state_impl * qs,
+    llama_ftype ftype,
+    ggml_tensor ** tensors,      // 输入张量数组
+    ggml_type * result_types,    // 输出类型数组（调用者分配）
+    size_t n_tensors);           // 张量数量
+```
+
+**工作流程**：
+
+```
+┌─────────────────────────────────────────┐
+│  llama_quant_compute_types              │
+├─────────────────────────────────────────┤
+│                                         │
+│  输入: tensors[] + ftype                │
+│       │                                 │
+│       ▼                                 │
+│  遍历每个张量                           │
+│       │                                 │
+│       ├───→ 检查是否允许量化           │
+│       │        │                        │
+│       │        ├───→ 不允许: 保持F32    │
+│       │        │                        │
+│       │        └───→ 允许: 选择量化类型 │
+│       │                                 │
+│       ▼                                 │
+│  输出: result_types[]                   │
+│       [Q4_0, F32, Q6_K, Q4_0, ...]      │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**示例代码**：
+
+```c
+// 收集模型中的所有张量
+std::vector<ggml_tensor *> tensors;
+// ... 填充tensors ...
+
+// 分配输出数组
+std::vector<ggml_type> result_types(tensors.size());
+
+// 计算每个张量的量化类型
+llama_quant_compute_types(qs, LLAMA_FTYPE_MOSTLY_Q4_K_M, 
+                          tensors.data(), result_types.data(), 
+                          tensors.size());
+
+// 查看结果
+for (size_t i = 0; i < tensors.size(); i++) {
+    printf("%s: %s -> %s\n",
+           tensors[i]->name,
+           ggml_type_name(tensors[i]->type),
+           ggml_type_name(result_types[i]));
+}
+```
+
+### A.5.6 扩展API使用注意事项
+
+1. **稳定性**：扩展API可能在未来版本中变化，生产代码建议使用稳定API
+2. **头文件**：使用扩展API需要包含 `llama-ext.h`
+3. **链接**：某些扩展功能可能需要链接额外的库
+4. **线程安全**：扩展API的线程安全性与对应的标准API一致
+
+### A.5.7 扩展API速查表
+
+| 函数 | 用途 | 稳定版本 |
+|------|------|----------|
+| `llama_graph_reserve` | 预留计算图 | 是 |
+| `llama_ftype_get_default_type` | 获取默认量化类型 | 是 |
+| `llama_quant_init` | 初始化量化状态 | 是 |
+| `llama_quant_free` | 释放量化状态 | 是 |
+| `llama_quant_model_from_metadata` | 创建模拟模型 | 是 |
+| `llama_quant_tensor_allows_quantization` | 判断可否量化 | 是 |
+| `llama_quant_compute_types` | 计算量化类型 | 是 |

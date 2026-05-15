@@ -56,6 +56,225 @@ src/llama-hparams.h
 ├── is_swa()                 # 判断某层是否使用SWA
 ├── n_swa()                  # 获取SWA窗口大小
 └── is_masked_swa()          # SWA掩码计算
+
+src/llama-memory-recurrent.h
+├── llama_memory_recurrent   # 循环模型内存（Mamba/RWKV）
+│   ├── mem_cell             # 循环状态单元
+│   ├── r_l/s_l              # 循环/状态张量
+│   └── find_slot()          # 查找槽位
+└── llama_memory_recurrent_context
+
+src/llama-memory-hybrid.h
+├── llama_memory_hybrid      # 混合内存（注意力+循环）
+│   ├── get_mem_attn()       # 获取注意力内存
+│   └── get_mem_recr()       # 获取循环内存
+└── llama_memory_hybrid_context
+
+src/llama-memory-hybrid-iswa.h
+├── llama_memory_hybrid_iswa # 混合内存+iSWA支持
+│   ├── get_mem_attn()       # 获取iSWA注意力内存
+│   └── get_mem_recr()       # 获取循环内存
+└── llama_memory_hybrid_iswa_context
+```
+
+---
+
+## 12.0 扩展内存类型
+
+除了标准KV缓存和iSWA缓存，llama.cpp还支持**循环模型内存**和**混合内存**，用于处理RWKV、Mamba等非Transformer架构以及混合架构模型（如Jamba）。
+
+### 12.0.1 llama_memory_recurrent - 循环模型内存
+
+**源码位置**：`src/llama-memory-recurrent.h` (第15-125行)
+
+循环模型（如Mamba、RWKV）不使用标准的KV缓存，而是维护一个**循环状态**（recurrent state）。`llama_memory_recurrent`为这类模型提供内存管理。
+
+**核心结构**：
+
+```cpp
+class llama_memory_recurrent : public llama_memory_i {
+public:
+    // 循环状态单元
+    struct mem_cell {
+        llama_pos pos  = -1;      // 位置
+        int32_t   src  = -1;      // 状态复制源
+        int32_t   src0 = -1;      // 输入阶段复制源
+        int32_t   tail = -1;      // 尾指针
+        std::set<llama_seq_id> seq_id;  // 所属序列
+    };
+
+    std::vector<mem_cell> cells;  // 状态单元数组
+    std::vector<ggml_tensor *> r_l;  // 每层循环张量
+    std::vector<ggml_tensor *> s_l;  // 每层状态张量
+
+    uint32_t head = 0;  // 批次放置位置
+    uint32_t size = 0;  // 总单元数
+    uint32_t used = 0;  // 已使用单元数
+};
+```
+
+**与KV缓存的区别**：
+
+| 特性 | KV缓存 | 循环状态 |
+|------|--------|----------|
+| 存储内容 | K/V向量 | 循环隐藏状态 |
+| 计算方式 | 点积注意力 | 状态转换函数 |
+| 内存复杂度 | O(n_layer × n_ctx × d_head) | O(n_layer × d_state) |
+| 适用模型 | Transformer | Mamba、RWKV |
+
+**槽位查找机制**：
+
+循环内存使用简化的槽位查找，因为循环模型通常只需要维护固定大小的状态：
+
+```cpp
+bool llama_memory_recurrent::find_slot(const llama_ubatch & ubatch) {
+    // 循环内存通常按顺序使用
+    // 只需要确保有足够的连续空间
+    // ...
+}
+```
+
+### 12.0.2 llama_memory_hybrid - 混合内存
+
+**源码位置**：`src/llama-memory-hybrid.h` (第19-90行)
+
+混合内存用于**混合架构模型**（如Jamba），其中部分层使用标准注意力，部分层使用循环机制。
+
+**设计思想**：
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  llama_memory_hybrid                      │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌─────────────────┐        ┌───────────────────┐      │
+│  │  llama_kv_cache │        │ llama_memory_     │      │
+│  │  (注意力层)      │        │   recurrent       │      │
+│  │                 │        │  (循环层)          │      │
+│  │  · K缓存         │        │                   │      │
+│  │  · V缓存         │        │  · 循环状态        │      │
+│  │                 │        │  · 状态张量         │      │
+│  └────────┬────────┘        └─────────┬─────────┘      │
+│           │                           │                │
+│           └───────────┬───────────────┘                │
+│                       │                                │
+│              ┌────────┴────────┐                       │
+│              │ 统一接口 llama_ │                       │
+│              │ memory_i 实现    │                       │
+│              └─────────────────┘                       │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键实现**：
+
+```cpp
+class llama_memory_hybrid : public llama_memory_i {
+public:
+    llama_memory_hybrid(
+        const llama_model & model,
+        /* 注意力参数 */
+        ggml_type type_k, ggml_type type_v,
+        bool v_trans, uint32_t kv_size,
+        /* 循环参数 */
+        ggml_type type_r, ggml_type type_s,
+        uint32_t rs_size,
+        /* 层过滤器 */
+        const layer_filter_cb & filter_attn = nullptr,
+        const layer_filter_cb & filter_recr = nullptr);
+
+    // 获取子内存
+    llama_kv_cache * get_mem_attn() const;
+    llama_memory_recurrent * get_mem_recr() const;
+
+private:
+    const std::unique_ptr<llama_kv_cache> mem_attn;      // 注意力内存
+    const std::unique_ptr<llama_memory_recurrent> mem_recr; // 循环内存
+};
+```
+
+**层过滤机制**：
+
+```cpp
+// 定义哪些层使用注意力，哪些层使用循环
+auto filter_attn = [](int32_t il) { 
+    return il % 2 == 0;  // 偶数层用注意力
+};
+auto filter_recr = [](int32_t il) { 
+    return il % 2 == 1;  // 奇数层用循环
+};
+```
+
+**操作分发**：
+
+混合内存将操作分发给对应的子内存：
+
+```cpp
+void llama_memory_hybrid::seq_cp(llama_seq_id src, llama_seq_id dst,
+                                  llama_pos p0, llama_pos p1) {
+    // 对注意力内存执行复制
+    mem_attn->seq_cp(src, dst, p0, p1);
+    // 对循环内存执行复制
+    mem_recr->seq_cp(src, dst, p0, p1);
+}
+```
+
+### 12.0.3 llama_memory_hybrid_iswa - 混合+iSWA内存
+
+**源码位置**：`src/llama-memory-hybrid-iswa.h` (第19-90行)
+
+这是混合内存的扩展版本，支持**交错滑动窗口注意力（iSWA）**。适用于需要混合架构同时又有长文本需求的场景。
+
+**与 llama_memory_hybrid 的区别**：
+
+```cpp
+class llama_memory_hybrid_iswa : public llama_memory_i {
+    // 使用 llama_kv_cache_iswa 替代 llama_kv_cache
+    const std::unique_ptr<llama_kv_cache_iswa> mem_attn;
+    const std::unique_ptr<llama_memory_recurrent> mem_recr;
+};
+```
+
+**使用场景**：
+
+- **Jamba + 长文本**：Jamba本身混合了Transformer和Mamba层，iSWA变体让Transformer层支持滑动窗口
+- **效率与长度兼得**：循环层提供高效长程依赖，iSWA层提供局部精确注意力
+
+### 12.0.4 内存类型选择指南
+
+**模型架构与内存类型对应表**：
+
+| 模型架构 | 内存类型 | 说明 |
+|----------|----------|------|
+| Llama/Qwen/Gemma | `llama_kv_cache` | 标准Transformer |
+| Mistral | `llama_kv_cache` (SWA) | SWA支持 |
+| RWKV | `llama_memory_recurrent` | 纯循环模型 |
+| Mamba | `llama_memory_recurrent` | 状态空间模型 |
+| Jamba | `llama_memory_hybrid` | 混合架构 |
+| 长文本Jamba | `llama_memory_hybrid_iswa` | 混合+iSWA |
+
+**内存初始化流程**：
+
+```cpp
+// llama_context.cpp
+llama_memory_ptr llama_context::create_memory(const llama_model & model) {
+    if (model.has_recurrent_layers() && model.has_attention_layers()) {
+        if (model.has_swa_layers()) {
+            return std::make_unique<llama_memory_hybrid_iswa>(model, ...);
+        } else {
+            return std::make_unique<llama_memory_hybrid>(model, ...);
+        }
+    } else if (model.has_recurrent_layers()) {
+        return std::make_unique<llama_memory_recurrent>(model, ...);
+    } else {
+        // 标准Transformer
+        if (model.has_swa()) {
+            return std::make_unique<llama_kv_cache_iswa>(model, ...);
+        } else {
+            return std::make_unique<llama_kv_cache>(model, ...);
+        }
+    }
+}
 ```
 
 ---

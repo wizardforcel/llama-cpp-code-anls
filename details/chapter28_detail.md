@@ -19,10 +19,271 @@
 | `common/log.h` | 日志宏定义 | LOG_DBG/LOG_INF/LOG_WRN/LOG_ERR |
 | `common/log.cpp` | 日志实现 | 异步日志、级别过滤、彩色输出 |
 | `src/llama.cpp` | 主实现 | 核心API实现、状态检查 |
+| `src/llama-impl.h` | 内部工具 | 日志宏、计时器、格式化、辅助类 |
 | `ggml/src/ggml.c` | GGML核心 | 张量操作、计算图执行 |
 | `examples/llama-bench/llama-bench.cpp` | 基准测试 | 性能测试、指标收集 |
 
 ## 4. 详细章节内容
+
+### 4.0 llama-impl.h 内部工具
+
+`llama-impl.h` 提供了llama.cpp内部使用的各种**实用工具类**，包括日志宏、时间测量、缓冲区视图、字符串处理等。这些是开发和调试时的基础设施。
+
+#### 4.0.1 日志宏系统
+
+**源码位置**：`src/llama-impl.h` (第19-31行)
+
+```cpp
+// 内部日志宏（供llama.cpp内部使用）
+#define LLAMA_LOG(...)       llama_log_internal(GGML_LOG_LEVEL_NONE , __VA_ARGS__)
+#define LLAMA_LOG_INFO(...)  llama_log_internal(GGML_LOG_LEVEL_INFO , __VA_ARGS__)
+#define LLAMA_LOG_WARN(...)  llama_log_internal(GGML_LOG_LEVEL_WARN , __VA_ARGS__)
+#define LLAMA_LOG_ERROR(...) llama_log_internal(GGML_LOG_LEVEL_ERROR, __VA_ARGS__)
+#define LLAMA_LOG_DEBUG(...) llama_log_internal(GGML_LOG_LEVEL_DEBUG, __VA_ARGS__)
+#define LLAMA_LOG_CONT(...)  llama_log_internal(GGML_LOG_LEVEL_CONT , __VA_ARGS__)
+```
+
+**与 common/log.h 的区别**：
+
+| 特性 | common/log.h | llama-impl.h |
+|------|-------------|--------------|
+| 使用场景 | 通用工具库 | llama.cpp内部 |
+| 宏名称 | LOG_INF/LOG_ERR | LLAMA_LOG_INFO/LLAMA_LOG_ERROR |
+| 目标用户 | 示例程序/工具 | llama.cpp核心 |
+| 功能范围 | 完整日志系统 | 简单封装 |
+
+**使用示例**：
+
+```cpp
+// src/llama-model.cpp
+LLAMA_LOG_INFO("%s: loading model from '%s'\n", __func__, path_model);
+LLAMA_LOG_WARN("%s: unknown model architecture: %s\n", __func__, arch_name);
+```
+
+#### 4.0.2 no_init - 延迟初始化包装
+
+**源码位置**：`src/llama-impl.h` (第37-41行)
+
+```cpp
+template <typename T>
+struct no_init {
+    T value;
+    no_init() = default;  // 不初始化value
+};
+```
+
+**用途**：
+- 在需要**手动控制初始化时机**的场景使用
+- 避免默认构造函数的开销
+- 常用于性能敏感的代码路径
+
+**使用场景**：
+
+```cpp
+// 大数组的延迟初始化
+std::vector<no_init<float>> large_buffer(size);
+// 稍后手动初始化
+for (size_t i = 0; i < size; i++) {
+    large_buffer[i].value = compute_initial_value(i);
+}
+```
+
+**注意事项**：
+- 使用`no_init`后必须**手动确保初始化**
+- 未初始化的值可能包含垃圾数据
+- 仅用于性能关键路径，普通代码不建议使用
+
+#### 4.0.3 time_meas - 时间测量器
+
+**源码位置**：`src/llama-impl.h` (第43-50行)
+
+```cpp
+struct time_meas {
+    time_meas(int64_t & t_acc, bool disable = false);
+    ~time_meas();
+
+    const int64_t t_start_us;
+    int64_t & t_acc;
+};
+```
+
+**工作原理**：
+
+```
+┌─────────────────────────────────────┐
+│  time_meas tm(t_total, no_perf)      │
+│       │                              │
+│       ▼                              │
+│  t_start_us = ggml_time_us()         │
+│       │                              │
+│       │  [代码执行中...]              │
+│       │                              │
+│       ▼                              │
+│  ~time_meas()                         │
+│       │                              │
+│       ▼                              │
+│  t_acc += ggml_time_us() - t_start_us │
+└─────────────────────────────────────┘
+```
+
+**使用示例**：
+
+```cpp
+// src/llama-context.cpp
+int64_t t_graph_us = 0;
+
+void llama_context::build_graph() {
+    time_meas tm(t_graph_us, cparams.no_perf);
+    // 自动计时：构造函数开始，析构函数结束
+    
+    // 构建计算图...
+    ggml_build_graph(...);
+}  // tm析构时自动累加时间到t_graph_us
+```
+
+**性能报告**：
+
+```cpp
+// 打印性能统计
+void llama_context::perf_print() {
+    LLAMA_LOG_INFO("graph compute time: %.3f ms\n", t_graph_us / 1000.0);
+}
+```
+
+#### 4.0.4 buffer_view - 缓冲区视图
+
+**源码位置**：`src/llama-impl.h` (第52-60行)
+
+```cpp
+template <typename T>
+struct buffer_view {
+    T * data;
+    size_t size = 0;
+
+    bool has_data() const {
+        return data && size > 0;
+    }
+};
+```
+
+**设计模式**：
+- **非拥有式引用**：只存储指针和大小，不管理内存
+- **零拷贝**：避免不必要的数据复制
+- **安全检查**：`has_data()`验证有效性
+
+**使用场景**：
+
+```cpp
+// 引用外部数据而不拷贝
+buffer_view<float> get_tensor_data(const ggml_tensor * t) {
+    return { (float*)t->data, ggml_nelements(t) };
+}
+
+// 传递视图而非整个张量
+void process_view(buffer_view<float> view) {
+    if (!view.has_data()) return;
+    for (size_t i = 0; i < view.size; i++) {
+        view.data[i] = transform(view.data[i]);
+    }
+}
+```
+
+**与 std::span 的区别**：
+- `buffer_view`更简单，兼容旧C++标准
+- 显式的`has_data()`检查
+- 专为原始指针设计
+
+#### 4.0.5 字符串处理工具
+
+**replace_all - 全局替换**
+
+```cpp
+void replace_all(std::string & s, 
+                  const std::string & search, 
+                  const std::string & replace);
+
+// 使用示例
+std::string name = "layer.0.attn.weight";
+replace_all(name, ".", "_");  // -> "layer_0_attn_weight"
+```
+
+**format - 格式化字符串**
+
+```cpp
+// 类型安全的格式化（类似sprintf但返回std::string）
+LLAMA_ATTRIBUTE_FORMAT(1, 2)
+std::string format(const char * fmt, ...);
+
+// 使用示例
+std::string info = format("layer %d, dim=%d", layer_idx, n_embd);
+// -> "layer 0, dim=4096"
+```
+
+**llama_format_tensor_shape - 张量形状格式化**
+
+```cpp
+std::string llama_format_tensor_shape(const std::vector<int64_t> & ne);
+std::string llama_format_tensor_shape(const struct ggml_tensor * t);
+
+// 使用示例
+ggml_tensor * t = ...;  // shape = [32000, 4096]
+std::string shape = llama_format_tensor_shape(t);  // -> "[32000, 4096]"
+```
+
+**gguf_kv_to_str - GGUF元数据转字符串**
+
+```cpp
+std::string gguf_kv_to_str(const struct gguf_context * ctx, int i);
+
+// 将GGUF元数据值转换为可读字符串
+// 自动处理不同数据类型（int, float, string, array等）
+```
+
+#### 4.0.6 调试实用技巧
+
+**条件断点宏**
+
+```cpp
+// 在特定条件触发断点
+#ifdef LLAMA_DEBUG
+#define LLAMA_BREAK_IF(cond) if (cond) __debugbreak()
+#else
+#define LLAMA_BREAK_IF(cond)
+#endif
+
+// 使用
+LLAMA_BREAK_IF(isnan(tensor->data[0]));  // 遇到NaN自动断点
+```
+
+**张量名称常量**
+
+```cpp
+// src/llama-impl.h (第73-76行)
+#define LLAMA_TENSOR_NAME_FATTN   "__fattn__"
+#define LLAMA_TENSOR_NAME_FGDN_AR   "__fgdn_ar__"
+#define LLAMA_TENSOR_NAME_FGDN_CH   "__fgdn_ch__"
+
+// 用于标记特殊张量，便于调试时识别
+```
+
+**调试检查清单**：
+
+```cpp
+// 在关键位置插入检查
+LLAMA_LOG_DEBUG("tensor %s: shape=%s, data[0]=%f\n",
+                tensor->name,
+                llama_format_tensor_shape(tensor).c_str(),
+                ((float*)tensor->data)[0]);
+
+// 性能热点计时
+{
+    time_meas tm(t_hotspot_us, false);
+    critical_code();
+}
+LLAMA_LOG_INFO("hotspot took %.3f ms\n", t_hotspot_us / 1000.0);
+```
+
+---
 
 ### 4.1 日志系统详解
 
