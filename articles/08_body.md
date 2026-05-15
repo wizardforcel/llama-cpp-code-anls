@@ -21,6 +21,239 @@
 
 ---
 
+## 8.0 IO抽象接口
+
+在模型加载和保存过程中，llama.cpp使用**抽象IO接口**来解耦具体的存储实现（文件、内存、网络等）。这种设计使得代码可以灵活地处理不同的数据源，无论是本地文件、内存缓冲区还是网络流，都能通过统一的接口进行操作。
+
+### 8.0.1 llama_io_write_i - 写入接口
+
+**源码位置**：`src/llama-io.h`（第9-21行）
+
+```cpp
+class llama_io_write_i {
+public:
+    virtual ~llama_io_write_i() = default;
+
+    // 写入原始字节数据
+    virtual void write(const void * src, size_t size) = 0;
+
+    // 写入张量数据（支持偏移和大小控制）
+    virtual void write_tensor(const ggml_tensor * tensor, 
+                               size_t offset, size_t size) = 0;
+
+    // 获取已写入字节数
+    virtual size_t n_bytes() = 0;
+
+    // 写入字符串（自动处理长度前缀）
+    void write_string(const std::string & str);
+};
+```
+
+**设计要点**：
+
+1. **纯虚接口**：所有写操作都通过虚函数实现，支持不同的后端。这种设计允许用户轻松扩展新的存储后端，如网络存储、加密存储等。
+
+2. **张量特化**：`write_tensor()`支持从张量特定偏移写入部分数据。这对于分片写入大模型权重非常有用，可以避免一次性加载整个张量到内存。
+
+3. **进度追踪**：`n_bytes()`用于追踪写入进度，在保存大模型时可以提供准确的进度反馈。
+
+4. **便捷方法**：`write_string()`封装了字符串长度+内容的常见模式，自动处理字符串的长度前缀编码。
+
+**典型实现**：
+
+```cpp
+// 文件写入实现
+class llama_io_write_file : public llama_io_write_i {
+    FILE * file;
+    size_t bytes_written = 0;
+
+public:
+    void write(const void * src, size_t size) override {
+        fwrite(src, 1, size, file);
+        bytes_written += size;
+    }
+
+    void write_tensor(const ggml_tensor * tensor, size_t offset, 
+                       size_t size) override {
+        fwrite((char*)tensor->data + offset, 1, size, file);
+        bytes_written += size;
+    }
+
+    size_t n_bytes() override { return bytes_written; }
+};
+
+// 内存写入实现（用于状态序列化）
+class llama_io_write_buffer : public llama_io_write_i {
+    std::vector<uint8_t> buffer;
+
+public:
+    void write(const void * src, size_t size) override {
+        buffer.insert(buffer.end(), (uint8_t*)src, (uint8_t*)src + size);
+    }
+
+    size_t n_bytes() override { return buffer.size(); }
+
+    std::vector<uint8_t> get_buffer() { return buffer; }
+};
+```
+
+### 8.0.2 llama_io_read_i - 读取接口
+
+**源码位置**：`src/llama-io.h`（第23-35行）
+
+```cpp
+class llama_io_read_i {
+public:
+    virtual ~llama_io_read_i() = default;
+
+    // 读取数据，返回指向内部缓冲区的指针
+    // 注意：指针仅在下次read前有效
+    virtual const uint8_t * read(size_t size) = 0;
+
+    // 读取数据到指定缓冲区
+    virtual void read_to(void * dst, size_t size) = 0;
+
+    // 获取已读取字节数
+    virtual size_t n_bytes() = 0;
+
+    // 读取字符串（先读长度前缀，再读内容）
+    void read_string(std::string & str);
+};
+```
+
+**设计要点**：
+
+1. **双模式读取**：`read()`返回内部缓冲区指针（零拷贝），`read_to()`拷贝到用户缓冲区。零拷贝模式适合即时处理数据，而拷贝模式适合需要长期保留数据的场景。
+
+2. **安全性**：`read()`返回的指针有效期有限，适合即时处理。这种设计鼓励开发者在使用完数据后立即处理，避免悬挂指针问题。
+
+3. **一致性**：`n_bytes()`与写入接口对称，用于进度追踪和完整性验证。
+
+**典型实现**：
+
+```cpp
+// 文件读取实现
+class llama_io_read_file : public llama_io_read_i {
+    FILE * file;
+    std::vector<uint8_t> buf;  // 内部缓冲区
+    size_t bytes_read = 0;
+
+public:
+    const uint8_t * read(size_t size) override {
+        buf.resize(size);
+        fread(buf.data(), 1, size, file);
+        bytes_read += size;
+        return buf.data();
+    }
+
+    void read_to(void * dst, size_t size) override {
+        fread(dst, 1, size, file);
+        bytes_read += size;
+    }
+
+    size_t n_bytes() override { return bytes_read; }
+};
+
+// 内存读取实现（用于状态反序列化）
+class llama_io_read_buffer : public llama_io_read_i {
+    const std::vector<uint8_t> & buffer;
+    size_t pos = 0;
+    size_t bytes_read = 0;
+
+public:
+    const uint8_t * read(size_t size) override {
+        const uint8_t * ptr = buffer.data() + pos;
+        pos += size;
+        bytes_read += size;
+        return ptr;
+    }
+
+    void read_to(void * dst, size_t size) override {
+        memcpy(dst, buffer.data() + pos, size);
+        pos += size;
+        bytes_read += size;
+    }
+
+    size_t n_bytes() override { return bytes_read; }
+};
+```
+
+### 8.0.3 IO接口的应用场景
+
+**场景1：模型状态保存/恢复**
+
+```cpp
+// 保存状态到文件
+void llama_context::state_save(const char * path) {
+    llama_io_write_file io(path);
+    memory->state_write(io);  // 使用抽象写入接口
+}
+
+// 从文件恢复状态
+void llama_context::state_load(const char * path) {
+    llama_io_read_file io(path);
+    memory->state_read(io);  // 使用抽象读取接口
+}
+```
+
+**场景2：网络传输**
+
+```cpp
+// 服务器端：将状态写入网络
+class llama_io_write_socket : public llama_io_write_i {
+    int socket_fd;
+public:
+    void write(const void * src, size_t size) override {
+        send(socket_fd, src, size, 0);
+    }
+    // ...
+};
+
+// 客户端：从网络读取状态
+class llama_io_read_socket : public llama_io_read_i {
+    int socket_fd;
+public:
+    void read_to(void * dst, size_t size) override {
+        recv(socket_fd, dst, size, 0);
+    }
+    // ...
+};
+```
+
+**场景3：内存序列化（用于Python绑定）**
+
+```cpp
+// C++端
+std::vector<uint8_t> llama_state_serialize(llama_context * ctx) {
+    llama_io_write_buffer io;
+    ctx->state_write(io);
+    return io.get_buffer();
+}
+
+void llama_state_deserialize(llama_context * ctx, 
+                              const std::vector<uint8_t> & data) {
+    llama_io_read_buffer io(data);
+    ctx->state_read(io);
+}
+```
+
+### 8.0.4 设计中的取舍
+
+**为什么选择抽象接口而非直接使用文件操作？**
+
+| 方案 | 优点 | 缺点 | llama.cpp选择 |
+|-----|------|------|---------------|
+| 直接使用文件 | 简单直观 | 无法扩展，难以测试 | ❌ |
+| 模板参数 | 编译时确定，零开销 | 灵活性差，代码膨胀 | ❌ |
+| **虚函数抽象接口** | 运行时多态，易于扩展 | 轻微虚函数开销 | ✅ |
+
+llama.cpp选择虚函数抽象接口的原因是：
+1. **可测试性**：可以使用内存缓冲区替代文件进行单元测试
+2. **可扩展性**：易于添加新的存储后端（网络、加密、压缩等）
+3. **接口统一**：模型加载、状态保存、GGUF读写使用相同的接口
+
+---
+
 ## 8.1 GGUF 文件格式详解
 
 ### 8.1.1 GGUF 设计目标

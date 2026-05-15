@@ -19,6 +19,145 @@
 
 ---
 
+## 11.0 内存管理抽象层
+
+在深入了解KV缓存之前，我们需要先理解`llama-memory.h`定义的**内存管理抽象接口**。这是llama.cpp中所有内存类型（KV缓存、循环状态缓存等）的统一基类，它提供了一套通用的内存操作接口，使得上层代码无需关心具体的内存实现细节。
+
+### 11.0.1 llama_memory_i - 内存管理接口
+
+**源码位置**：`src/llama-memory.h`（第68-120行）
+
+```cpp
+struct llama_memory_i {
+    // 析构函数
+    virtual ~llama_memory_i() = default;
+
+    // 初始化批次处理，将输入批次分割为ubatches
+    virtual llama_memory_context_ptr init_batch(
+            llama_batch_allocr & balloc,
+            uint32_t n_ubatch,
+            bool embd_all) = 0;
+
+    // 模拟满缓存，用于分配最坏情况下的计算缓冲区
+    virtual llama_memory_context_ptr init_full() = 0;
+
+    // 准备待处理的内存更新（如偏移、复制等）
+    virtual llama_memory_context_ptr init_update(
+            llama_context * lctx, 
+            bool optimize) = 0;
+
+    // 序列操作接口
+    virtual void clear(bool data) = 0;
+    virtual bool seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos p1) = 0;
+    virtual void seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, 
+                        llama_pos p0, llama_pos p1) = 0;
+    virtual void seq_keep(llama_seq_id seq_id) = 0;
+    virtual void seq_add(llama_seq_id seq_id, llama_pos p0, llama_pos p1, 
+                         llama_pos shift) = 0;
+    virtual void seq_div(llama_seq_id seq_id, llama_pos p0, llama_pos p1, int d) = 0;
+
+    // 状态读写
+    virtual void state_write(llama_io_write_i & io, 
+                             llama_seq_id seq_id = -1, 
+                             llama_state_seq_flags flags = 0) const = 0;
+    virtual void state_read(llama_io_read_i & io, 
+                            llama_seq_id seq_id = -1, 
+                            llama_state_seq_flags flags = 0) = 0;
+};
+```
+
+**关键设计思想**：
+
+1. **统一接口**：所有内存类型（KV缓存、循环状态、混合内存）都实现`llama_memory_i`，使得`llama_context`可以用相同的方式处理不同类型的模型。这种设计极大地提高了代码的复用性和可维护性。
+
+2. **批次处理抽象**：`init_batch()`返回`llama_memory_context_i`，用于迭代处理分割后的ubatches。这种设计支持大模型的分批次推理，避免一次性加载过多数据导致内存不足。
+
+3. **状态持久化**：统一的`state_write/read`接口支持会话保存/恢复，使得推理状态可以在不同运行之间持久化。
+
+### 11.0.2 llama_memory_context_i - 批次处理上下文
+
+**源码位置**：`src/llama-memory.h`（第46-62行）
+
+```cpp
+struct llama_memory_context_i {
+    virtual ~llama_memory_context_i() = default;
+
+    // 消费当前ubatch并切换到下一个
+    // 返回false表示处理完成
+    virtual bool next() = 0;
+
+    // 将当前ubatch的内存状态应用到内存对象
+    // 返回false表示失败
+    virtual bool apply() = 0;
+
+    // 获取当前ubatch
+    virtual const llama_ubatch & get_ubatch() const = 0;
+
+    // 获取内存上下文状态
+    virtual llama_memory_status get_status() const = 0;
+};
+```
+
+**工作流程**：
+
+```
+llama_memory_i
+    ↓ init_batch()
+llama_memory_context_i
+    ↓ next() → apply() → next() → apply() → ...
+（直到next()返回false）
+```
+
+这种迭代器模式允许分批次处理大量token，每次只处理一个ubatch，有效控制内存使用。
+
+### 11.0.3 llama_memory_status - 操作状态
+
+**源码位置**：`src/llama-memory.h`（第25-30行）
+
+```cpp
+enum llama_memory_status {
+    LLAMA_MEMORY_STATUS_SUCCESS = 0,       // 操作成功
+    LLAMA_MEMORY_STATUS_NO_UPDATE,       // 无需更新
+    LLAMA_MEMORY_STATUS_FAILED_PREPARE,  // 准备失败
+    LLAMA_MEMORY_STATUS_FAILED_COMPUTE,  // 计算失败
+};
+```
+
+**辅助函数**：
+- `llama_memory_status_combine()` - 合并两个状态（用于混合内存类型）
+- `llama_memory_status_is_fail()` - 检查是否为失败状态
+
+### 11.0.4 与KV缓存的关系
+
+`llama_kv_cache`继承并实现`llama_memory_i`：
+
+```cpp
+class llama_kv_cache : public llama_memory_i {
+    // 实现所有虚函数...
+};
+```
+
+这种设计使得：
+1. **llama_context不需要知道具体内存类型**，只通过`llama_memory_i`指针操作
+2. **支持混合模型**（如Jamba、RWKV）：可以同时拥有KV缓存和循环状态
+3. **易于扩展**：添加新的内存类型只需实现`llama_memory_i`
+
+### 11.0.5 设计中的取舍
+
+**为什么使用抽象接口而非模板？**
+
+| 方案 | 优点 | 缺点 | llama.cpp选择 |
+|-----|------|------|---------------|
+| 模板 | 编译时确定，零运行时开销 | 代码膨胀，编译慢 | ❌ |
+| **虚函数抽象** | 运行时多态，代码复用 | 轻微虚函数调用开销 | ✅ |
+
+llama.cpp选择虚函数抽象的原因是：
+1. **内存类型在运行时才确定**（根据模型架构自动选择）
+2. **虚函数开销在推理中可忽略**（相比矩阵计算）
+3. **代码复用性高**，易于维护和扩展
+
+---
+
 ## 11.1 KV缓存核心设计
 
 ### 11.1.1 为什么需要KV缓存

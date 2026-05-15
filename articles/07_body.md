@@ -541,7 +541,218 @@ n_ctx = 4096
 
 ---
 
-## 7.6 本章小结
+## 7.6 模型架构实现 (src/models/)
+
+除了架构定义和配置，llama.cpp在 `src/models/` 目录下包含各模型架构的**具体计算图实现**。这些文件负责构建特定模型的前向传播计算图，将抽象的架构配置转化为可执行的计算步骤。
+
+### 7.6.1 模型实现文件列表
+
+**源码位置**：`src/models/`
+
+```
+src/models/
+├── llama.cpp    / llama4.cpp    # Llama系列 (Llama 1/2/3/4)
+├── qwen.cpp     / qwen2.cpp      # Qwen系列
+├── qwen3.cpp
+├── gemma.cpp    / gemma2.cpp     # Gemma系列
+├── gemma3.cpp   / gemma4.cpp
+├── deepseek.cpp / deepseek2.cpp  # DeepSeek系列
+├── falcon.cpp                   # Falcon
+├── mpt.cpp                      # MPT
+├── gpt2.cpp                     # GPT-2
+├── gptneox.cpp                  # GPT-NeoX / Pythia
+├── starcoder.cpp / starcoder2.cpp # StarCoder
+├── bert.cpp / modern_bert.cpp   # BERT系列
+├── eurobert.cpp / nomic_bert.cpp
+├── t5.cpp / t5encoder.cpp       # T5系列
+├── mamba.cpp / mamba2.cpp       # Mamba状态空间模型
+├── rwkv6.cpp / rwkv7.cpp        # RWKV循环模型
+├── arwkv7.cpp                   # 异步RWKV
+├── jamba.cpp                    # Jamba混合架构
+├── clip.cpp                     # CLIP视觉编码
+├── phi2.cpp / phi3.cpp / phimoe.cpp # Phi系列
+├── qwen2vl.cpp                  # Qwen2-VL多模态
+├── olmo.cpp / olmo2.cpp         # OLMo
+├── plamo.cpp / plamo2.cpp / plamo3.cpp # PLaMo
+├── exaone.cpp                   # EXAONE
+├── command_r.cpp / cohere2.cpp  # Cohere系列
+├── nemotron.cpp / nemotron_h.cpp # Nemotron
+├── minicpm.cpp / minicpm3.cpp  # MiniCPM
+└── ... (更多架构实现)
+```
+
+### 7.6.2 模型实现的核心职责
+
+每个 `src/models/*.cpp` 文件通常包含：
+
+```cpp
+// 以 llama.cpp 为例
+
+class llm_build_llama : public llm_graph_context {
+public:
+    llm_build_llama(...)
+        : llm_graph_context(..., LLM_ARCH_LLAMA) {}
+
+    // 构建前向传播计算图
+    llm_graph_result build() {
+        // 1. 词嵌入
+        // 2. 遍历各层构建Transformer Block
+        // 3. 输出层
+    }
+
+private:
+    // 构建单层Transformer
+    ggml_tensor * build_layer(int32_t il) {
+        // · Self-Attention (GQA)
+        // · FFN (SwiGLU)
+        // · 残差连接
+    }
+};
+```
+
+**主要职责**：
+
+1. **计算图构建**：从输入token构建到输出logits的完整计算图
+2. **架构特定逻辑**：处理特定架构的独特结构（如位置编码、层归一化变体等）
+3. **张量映射**：将架构特定的权重名称映射到统一的图节点
+
+### 7.6.3 典型模型实现对比
+
+| 模型 | 关键特性 | 特殊实现 |
+|------|----------|----------|
+| **llama.cpp** | RoPE, GQA, SwiGLU | 标准Transformer基准 |
+| **qwen2.cpp** | Qwen特有RoPE配置, SwiGLU | 支持Qwen1.5/2.x |
+| **qwen3.cpp** | 共享专家/独立专家 | MoE架构支持 |
+| **gemma2.cpp** | 滑动窗口注意力 | SWA层特殊处理 |
+| **gemma3.cpp** | 局部-全局注意力交替 | 局部/全局层切换 |
+| **deepseek2.cpp** | MLA (Multi-head Latent Attention) | 低秩注意力压缩 |
+| **mamba.cpp** | SSM (State Space Model) | 无Attention线性时间 |
+| **rwkv7.cpp** | RWKV v7时间衰减 | 循环结构实现 |
+| **bert.cpp** | 双向Attention, MLM | 编码器专用图 |
+| **jamba.cpp** | Attention-Mamba混合 | 层类型交替逻辑 |
+| **clip.cpp** | 视觉编码器 | ViT结构实现 |
+| **qwen2vl.cpp** | 视觉-语言融合 | 图像patch处理 |
+
+### 7.6.4 添加新架构支持
+
+**步骤1：创建模型实现文件**
+
+```cpp
+// src/models/myllm.cpp
+
+class llm_build_myllm : public llm_graph_context {
+public:
+    llm_build_myllm(...)
+        : llm_graph_context(..., LLM_ARCH_MYLLM) {}
+
+    llm_graph_result build() {
+        // 实现计算图构建
+        ggml_tensor * cur = build_inp_embd();
+        
+        for (int il = 0; il < n_layer; il++) {
+            cur = build_layer(il, cur);
+        }
+        
+        return build_output(cur);
+    }
+
+private:
+    ggml_tensor * build_layer(int32_t il, ggml_tensor * inp) {
+        // 实现单层逻辑
+    }
+};
+```
+
+**步骤2：在 llama-graph.cpp 中注册**
+
+```cpp
+// src/llama-graph.cpp
+llm_graph_result llama_graph_build(
+    llama_context & lctx,
+    const llama_batch & batch,
+    llm_graph_type gtype) {
+    
+    switch (lctx.model.arch) {
+        case LLM_ARCH_LLAMA:
+            return llm_build_llama(lctx, batch).build();
+        case LLM_ARCH_MYLLM:
+            return llm_build_myllm(lctx, batch).build();
+        // ...
+    }
+}
+```
+
+**步骤3：更新 llama-arch.h 和 llama-arch.cpp**
+
+```cpp
+// src/llama-arch.h
+enum llm_arch {
+    // ...
+    LLM_ARCH_MYLLM,
+    LLM_ARCH_UNKNOWN,
+};
+
+// src/llama-arch.cpp
+static const std::map<llm_arch, llm_arch_info> LLM_ARCH_INFO = {
+    // ...
+    {LLM_ARCH_MYLLM, {
+        "myllm",
+        {
+            {LLM_TENSOR_TOKEN_EMBD, "token_embd"},
+            {LLM_TENSOR_ATTN_Q, "attn_q"},
+            {LLM_TENSOR_ATTN_K, "attn_k"},
+            // ... 张量名称映射
+        }
+    }},
+};
+```
+
+### 7.6.5 模型实现与架构配置的关系
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    模型支持层次                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────┐      ┌──────────────┐                   │
+│  │ llama-arch.h │      │ llama-arch.cpp│                   │
+│  │ · 架构枚举    │─────→│ · 架构配置    │                   │
+│  │ · 张量映射    │      │ · 张量名称    │                   │
+│  └──────────────┘      └──────┬─────────┘                   │
+│                               │                             │
+│                               ▼                             │
+│  ┌──────────────┐      ┌──────────────┐                   │
+│  │ models/ *.cpp │      │ llama-graph  │                   │
+│  │ · 计算图实现  │─────→│ · 图构建分发 │                   │
+│  │ · 架构特有逻辑│      │ · 统一执行   │                   │
+│  └──────────────┘      └──────────────┘                     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**设计哲学**：
+
+1. **配置与实现分离**：`llama-arch.h` 定义"有什么"，`models/*.cpp` 定义"怎么做"
+2. **可扩展性**：添加新模型只需增加配置 + 实现文件，不改动核心
+3. **代码复用**：继承 `llm_graph_context` 复用通用构建工具
+
+### 7.6.6 设计中的取舍
+
+**为什么将模型实现分离到独立文件？**
+
+| 方案 | 优点 | 缺点 | llama.cpp选择 |
+|-----|------|------|---------------|
+| 单文件实现 | 简单，无分散 | 文件巨大，编译慢 | ❌ |
+| **每模型独立文件** | 模块化，并行编译 | 文件数量多 | ✅ |
+
+llama.cpp选择每模型独立文件的原因是：
+1. **编译并行化**：各模型实现可以并行编译，加快构建速度
+2. **按需加载**：只需要链接实际使用的模型实现
+3. **易于维护**：每个文件职责清晰，便于定位和修改
+
+---
+
+## 7.7 本章小结
 
 本章介绍了 llama.cpp 如何支持多种模型架构。`llm_arch` 枚举定义了支持的架构类型，目前支持 50 多种不同的模型架构。`llama_hparams` 结构存储超参数配置，这些参数决定了模型的结构和行为。GQA（分组查询注意力）是一种优化技术，通过设置 n_head_kv 小于 n_head 来节省 KV 缓存空间。张量映射机制负责将 HuggingFace 格式的张量名称转换为 GGUF 格式的命名。架构检测功能能够从 GGUF 元数据中自动识别模型架构。`n_ctx_train` 表示训练时的上下文长度，这个参数决定了 RoPE 的配置方式。`rope_theta` 是 RoPE 的基数参数，影响模型的长上下文外推能力。
 
@@ -555,5 +766,7 @@ n_ctx = 4096
 | 张量命名映射 | 将 HuggingFace 格式的张量名转换为 GGUF 统一的命名规范 |
 | 架构配置信息表 | LLM_ARCH_INFO 映射表，包含每种架构的默认参数和命名模板 |
 | RoPE 参数体系 | rope_theta、scaling_type、freq_base 等参数控制位置编码行为 |
+| models/ *.cpp | 各模型架构的具体计算图实现文件，如 llama.cpp、qwen2.cpp 等 |
+| llm_graph_context | 模型计算图构建的基类，新架构通过继承此类实现 build() 方法 |
 
 下一章中，我们将学习 GGUF 文件格式——理解模型文件的内部结构和元数据系统。
