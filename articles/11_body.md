@@ -100,12 +100,12 @@ struct llama_memory_context_i {
 
 **工作流程**：
 
-```
-llama_memory_i
-    ↓ init_batch()
-llama_memory_context_i
-    ↓ next() → apply() → next() → apply() → ...
-（直到next()返回false）
+```mermaid
+graph TD
+    A["llama_memory_i"] -->|init_batch| B["llama_memory_context_i"]
+    B -->|next| C["apply"]
+    C -->|next| D["apply"]
+    D -->|...| E["直到next返回false"]
 ```
 
 这种迭代器模式允许分批次处理大量token，每次只处理一个ubatch，有效控制内存使用。
@@ -195,24 +195,25 @@ struct kv_layer {
 ```
 
 **内存布局图解**：
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    KV缓存内存布局                            │
-├─────────────────────────────────────────────────────────────┤
-│  Layer 0 K缓存: [n_embd_k_gqa, kv_size, n_stream]            │
-│  Layer 0 V缓存: [n_embd_v_gqa, kv_size, n_stream]            │
-├─────────────────────────────────────────────────────────────┤
-│  Layer 1 K缓存: [n_embd_k_gqa, kv_size, n_stream]            │
-│  Layer 1 V缓存: [n_embd_v_gqa, kv_size, n_stream]            │
-├─────────────────────────────────────────────────────────────┤
-│  ... 更多层 ...                                              │
-├─────────────────────────────────────────────────────────────┤
-│  其中:                                                       │
-│  - n_embd_k_gqa = n_head_kv * n_embd_head_k                  │
-│  - n_embd_v_gqa = n_head_kv * n_embd_head_v                  │
-│  - kv_size = 最大缓存token数（由n_ctx决定）                   │
-│  - n_stream = 流数量（多序列时为n_seq_max，否则为1）          │
-└─────────────────────────────────────────────────────────────┘
+
+```mermaid
+graph TD
+    subgraph KV缓存内存布局["KV缓存内存布局"]
+        direction TB
+        
+        layer0["Layer 0 K缓存: [n_embd_k_gqa, kv_size, n_stream]<br/>Layer 0 V缓存: [n_embd_v_gqa, kv_size, n_stream]"]
+        layer1["Layer 1 K缓存: [n_embd_k_gqa, kv_size, n_stream]<br/>Layer 1 V缓存: [n_embd_v_gqa, kv_size, n_stream]"]
+        more["... 更多层 ..."]
+        
+        layer0 --> layer1 --> more
+    end
+    
+    subgraph 参数说明["其中"]
+        p1["n_embd_k_gqa = n_head_kv * n_embd_head_k"]
+        p2["n_embd_v_gqa = n_head_kv * n_embd_head_v"]
+        p3["kv_size = 最大缓存token数（由n_ctx决定）"]
+        p4["n_stream = 流数量（多序列时为n_seq_max，否则为1）"]
+    end
 ```
 
 ### 11.1.3 Cell单元格管理
@@ -244,20 +245,17 @@ public:
 ```
 
 **Cell状态图解**：
-```
-┌────────────────────────────────────────────────────────────┐
-│  Cell索引:    0    1    2    3    4    5    6    7          │
-├────────────────────────────────────────────────────────────┤
-│  序列归属:   [0]  [0]  [0]  [1]  [1]  [0]  [ ]  [ ]        │
-│  位置pos:     0    1    2    0    1    3   -1   -1          │
-│  偏移shift:   0    0    0    0    0    0    0    0          │
-├────────────────────────────────────────────────────────────┤
-│  图示:                                                        │
-│  序列0: ████░░██  (位置0,1,2,3)                              │
-│  序列1: ░░██░░░░  (位置0,1)                                  │
-│  空cell: ░░ 表示空                                           │
-└────────────────────────────────────────────────────────────┘
-```
+
+| Cell索引 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---------|---|---|---|---|---|---|---|---|
+| 序列归属 | [0] | [0] | [0] | [1] | [1] | [0] | [ ] | [ ] |
+| 位置pos | 0 | 1 | 2 | 0 | 1 | 3 | -1 | -1 |
+| 偏移shift | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+**图示**：
+- 序列0: ████░░██ (位置0,1,2,3)
+- 序列1: ░░██░░░░ (位置0,1)
+- 空cell: ░░ 表示空
 
 ---
 

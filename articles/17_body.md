@@ -94,20 +94,27 @@ enum llama_gretype {
 ```
 
 **语法树图解**：
-```
-GBNF: number ::= "-"? [0-9]+ ("." [0-9]+)?
 
-解析树:
-              number
-                 │
-    ┌────────────┼────────────┐
-    │            │            │
-optional("-")  digits    optional
-    │            │       ┌────┴────┐
-   "-"       [0-9]+     "."    [0-9]+
-                │                 │
-              one+               one+
+```mermaid
+graph TD
+    root["number"]
+    opt1["optional"]
+    dash["'-'"]
+    digits["digits"]
+    opt2["optional"]
+    dot["'.'"]
+    digits2["digits"]
+    one1["one+"]
+    one2["one+"]
+    
+    root --> opt1 --> dash
+    root --> digits --> one1
+    root --> opt2
+    opt2 --> dot
+    opt2 --> digits2 --> one2
 ```
+
+GBNF: `number ::= "-"? [0-9]+ ("." [0-9]+)?`
 
 这个语法树展示了`number`规则的结构：
 - 可选的负号（`-`）

@@ -245,20 +245,17 @@ uint32_t llama_hparams::n_rep() const {
 
 **GQA 内存节省计算**：
 
-```
-MHA（多头注意力）：
-  KV 缓存 = 2 * batch * n_ctx * n_head * head_dim * sizeof(dtype)
-  
-GQA（n_head_kv = n_head / 4）：
-  KV 缓存 = 2 * batch * n_ctx * n_head_kv * head_dim * sizeof(dtype)
-         = MHA 的 1/4
-         
-Llama2 70B 示例：
-  n_head = 64, n_head_kv = 8（8 倍压缩）
-  对于 4096 上下文，batch=1，FP16：
-  MHA KV 缓存 = 2 * 1 * 4096 * 64 * 128 * 2 = 134 MB
-  GQA KV 缓存 = 2 * 1 * 4096 * 8 * 128 * 2 = 16.8 MB
-```
+| 类型 | KV 缓存计算 | 内存占用 |
+|------|------------|---------|
+| MHA（多头注意力）| KV 缓存 = 2 * batch * n_ctx * n_head * head_dim * sizeof(dtype) | 基准 |
+| GQA（n_head_kv = n_head / 4）| KV 缓存 = 2 * batch * n_ctx * n_head_kv * head_dim * sizeof(dtype) = MHA 的 1/4 | 节省 75% |
+
+**Llama2 70B 示例**（n_head = 64, n_head_kv = 8，8倍压缩）：
+
+| 配置 | 计算 | 内存占用 |
+|------|------|---------|
+| MHA KV 缓存 | 2 * 1 * 4096 * 64 * 128 * 2 | 134 MB |
+| GQA KV 缓存 | 2 * 1 * 4096 * 8 * 128 * 2 | 16.8 MB |
 
 ---
 

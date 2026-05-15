@@ -173,30 +173,24 @@ struct ggml_tensor * ggml_mul_mat(
 
 **形状计算图解**：
 
-```
-矩阵乘法: C = A @ B
-
-A: [M, K]  即 ne = [K, M]  (GGML列优先)
-B: [K, N]  即 ne = [K, N]
-C: [M, N]  即 ne = [N, M]
-
-可视化:
-     ┌─────────┐
-     │    B    │
-     │  [K,N]  │
-     └────┬────┘
-          │
-┌────┐    │    ┌────┐
-│ A  │====╪====│ C  │
-│[M,K]│   │    │[M,N]│
-└────┘    │    └────┘
-          │
-    [内维K匹配]
-
-在 LLM 前向传播中：
-- W: [4096, 512]  (权重矩阵，固定)
-- x: [512, 1]     (输入向量，变化)
-- y: [4096, 1]    (输出 logits)
+```mermaid
+graph TD
+    subgraph 矩阵乘法["矩阵乘法: C = A @ B"]
+        direction LR
+        
+        A["A<br/>[M, K]<br/>ne = [K, M]"] --> mul[""]
+        B["B<br/>[K, N]<br/>ne = [K, N]"] --> mul
+        mul --> C["C<br/>[M, N]<br/>ne = [N, M]"]
+        
+        style mul fill:none,stroke:none
+    end
+    
+    subgraph 注释["在 LLM 前向传播中"]
+        direction TB
+        W["W: [4096, 512] (权重矩阵，固定)"]
+        x["x: [512, 1] (输入向量，变化)"]
+        y["y: [4096, 1] (输出 logits)"]
+    end
 ```
 
 **性能优化策略**：
@@ -464,12 +458,24 @@ struct ggml_tensor * ggml_rope(
 
 **可视化理解**：
 
-```
-位置 0: 旋转 0°     位置 1: 旋转 θ      位置 2: 旋转 2θ
-    ↓                   ↓                   ↓
-  [x₀,x₁]            [x₀',x₁']           [x₀'',x₁'']
-    ↻                   ↻                   ↻
-   0°                  θ°                  2θ°
+```mermaid
+graph LR
+    subgraph 位置0["位置 0: 旋转 0°"]
+        p0["[x₀,x₁]"]
+        rotate0["↻ 0°"]
+    end
+    
+    subgraph 位置1["位置 1: 旋转 θ"]
+        p1["[x₀',x₁']"]
+        rotate1["↻ θ°"]
+    end
+    
+    subgraph 位置2["位置 2: 旋转 2θ"]
+        p2["[x₀'',x₁'']"]
+        rotate2["↻ 2θ°"]
+    end
+    
+    p0 --> p1 --> p2
 ```
 
 **外推能力**：
@@ -509,20 +515,21 @@ struct ggml_tensor * ggml_silu_inplace(struct ggml_context * ctx, struct ggml_te
 
 **内存节省示例**：
 
-```
-无 in-place：
-    ┌─────────┐         ┌─────────┐
-    │  a(输入) │  ──→   │result(输出)│
-    │ 100MB   │  SiLU   │ 100MB     │
-    └─────────┘         └─────────┘
-    总内存: 200MB（同时存在）
-
-有 in-place：
-    ┌─────────┐
-    │  a      │  ──→  原地修改
-    │ 100MB   │
-    └─────────┘
-    总内存: 100MB
+```mermaid
+graph LR
+    subgraph 无inplace["无 in-place"]
+        direction LR
+        a_input["a(输入)<br/>100MB"] --"SiLU"--> result["result(输出)<br/>100MB"]
+    end
+    
+    note1["总内存: 200MB（同时存在）"]
+    
+    subgraph 有inplace["有 in-place"]
+        a["a<br/>100MB"] --"原地修改"--> a_modified[""]
+        style a_modified fill:none,stroke:none
+    end
+    
+    note2["总内存: 100MB"]
 ```
 
 **使用时机**：
@@ -621,23 +628,27 @@ ggml_gallocr_alloc_graph(allocr, graph);
 
 **内存复用图解**：
 
+```mermaid
+%%{init: {'theme': 'base'}}%%
+timeline
+    title 时间轴
+    section 张量生命周期
+        张量A : ██████████ 常驻(输入/参数)
+        张量B : ████ 中间结果1
+        张量C :      ████ 中间结果2
+        结果 :        ██████████ 最终输出
+    
+    section 复用分析
+        张量B和C : 生命周期不重叠 → 可以共享内存
+        C和结果 : 部分重叠 → 需要独立空间
+    
+    section 优化后内存布局
+        块A : [A]
+        共享BC : [B/C 共享]
+        块结果 : [结果]
 ```
-时间轴 →
 
-张量A  [██████████]  常驻（输入/参数）
-张量B  [████      ]  中间结果 1
-张量C       [████ ]  中间结果 2
-结果          [██████████]  最终输出
-
-复用分析：
-- B 和 C 生命周期不重叠 → 可以共享内存
-- C 和结果部分重叠 → 需要独立空间
-
-优化后内存布局：
-┌──────────────────────────────────────────────────────┐
-│  A  │  B/C 共享  │        结果        │
-└──────────────────────────────────────────────────────┘
-
+```
 原始需求: 4 个内存块
 优化后: 3 个内存块
 节省: 25%
@@ -660,16 +671,14 @@ ggml_gallocr_alloc_graph(allocr, graph);
 
 **GGML 的混合策略**：
 
-```
-算子类型              实现方式
-─────────────────────────────────────
-元素级运算(add/mul)   纯 C + SIMD，全平台通用
-激活函数(silu/gelu)   纯 C + SIMD，全平台通用
-归一化(rms_norm)      纯 C + SIMD，全平台通用
-位置编码(rope)        纯 C + SIMD，全平台通用
-GEMM 大矩阵           后端特定（CUDA/Metal/Vulkan）
-量化反量化            必须自研（标准库不支持）
-```
+| 算子类型 | 实现方式 |
+|---------|---------|
+| 元素级运算(add/mul) | 纯 C + SIMD，全平台通用 |
+| 激活函数(silu/gelu) | 纯 C + SIMD，全平台通用 |
+| 归一化(rms_norm) | 纯 C + SIMD，全平台通用 |
+| 位置编码(rope) | 纯 C + SIMD，全平台通用 |
+| GEMM 大矩阵 | 后端特定（CUDA/Metal/Vulkan） |
+| 量化反量化 | 必须自研（标准库不支持） |
 
 这种策略的权衡：开发团队需要维护更多代码，但获得了最大的灵活性和可移植性。
 

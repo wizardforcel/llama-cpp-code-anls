@@ -154,39 +154,35 @@ struct common_speculative_state_draft : public common_speculative_state {
 ```
 
 **投机解码流程图解**：
-```
-输入prompt: "The quick brown fox"
 
-步骤1: 草稿模型快速生成
-┌─────────────────────────────────────────┐
-│ 草稿模型 M_q (小模型，快)                 │
-│                                         │
-│ 输入: "The quick brown fox"              │
-│ 输出: ["jumps", "over", "the", "lazy"]   │
-│ 耗时: 4 × 10ms = 40ms                   │
-└─────────────────────────────────────────┘
-                    ↓
-步骤2: 目标模型并行验证
-┌─────────────────────────────────────────┐
-│ 目标模型 M_p (大模型，慢)                 │
-│                                         │
-│ 输入: prompt + ["jumps", "over", "the", "lazy"] │
-│ 输出: 每个位置的logits（并行计算）        │
-│ 耗时: 1 × 50ms = 50ms                   │
-└─────────────────────────────────────────┘
-                    ↓
-步骤3: 接受/拒绝决策
-┌─────────────────────────────────────────┐
-│ 位置0: P_p("jumps") >= P_q("jumps")? ✓  │
-│ 位置1: P_p("over") >= P_q("over")?   ✓  │
-│ 位置2: P_p("the") < P_q("the")?      ✗  │
-│                                         │
-│ 结果: 接受2个token，从位置2重新采样       │
-└─────────────────────────────────────────┘
-
-总耗时: 40ms + 50ms = 90ms
-传统串行: 4 × 50ms = 200ms
-加速比: 200/90 ≈ 2.2x
+```mermaid
+graph TD
+    subgraph 输入["输入prompt: 'The quick brown fox'"]
+    end
+    
+    subgraph 步骤1["步骤1: 草稿模型快速生成"]
+        dft["草稿模型 M_q (小模型，快)<br/><br/>输入: 'The quick brown fox'<br/>输出: ['jumps', 'over', 'the', 'lazy']<br/>耗时: 4 × 10ms = 40ms"]
+    end
+    
+    subgraph 步骤2["步骤2: 目标模型并行验证"]
+        tgt["目标模型 M_p (大模型，慢)<br/><br/>输入: prompt + ['jumps', 'over', 'the', 'lazy']<br/>输出: 每个位置的logits（并行计算）<br/>耗时: 1 × 50ms = 50ms"]
+    end
+    
+    subgraph 步骤3["步骤3: 接受/拒绝决策"]
+        dec1["位置0: P_p('jumps') >= P_q('jumps')? ✓"]
+        dec2["位置1: P_p('over') >= P_q('over')? ✓"]
+        dec3["位置2: P_p('the') < P_q('the')? ✗"]
+        result["结果: 接受2个token，从位置2重新采样"]
+        dec1 --> dec2 --> dec3 --> result
+    end
+    
+    输入 --> 步骤1 --> 步骤2 --> 步骤3
+    
+    subgraph 性能对比["性能对比"]
+        total["总耗时: 40ms + 50ms = 90ms"]
+        traditional["传统串行: 4 × 50ms = 200ms"]
+        speedup["加速比: 200/90 ≈ 2.2x"]
+    end
 ```
 
 ### 18.1.3 N-gram自投机
@@ -248,28 +244,27 @@ struct common_speculative_state_ngram_mod : public common_speculative_state {
 ```
 
 **N-gram投机图解**：
-```
-历史序列: [..., "The", "quick", "brown", "fox"]
 
-N-gram模型 (N=4):
-┌─────────────────────────────────────┐
-│ Key: ["The", "quick", "brown"]       │
-│ Value: {"fox": 5, "cat": 2, "dog": 1} │
-│                                     │
-│ Key: ["quick", "brown", "fox"]       │
-│ Value: {"jumps": 6, "runs": 2}       │
-└─────────────────────────────────────┘
-
-预测过程:
-当前: ["quick", "brown", "fox"] + "jumps"
-查表: ["brown", "fox", "jumps"] → {"over": 5, "high": 1}
-预测: "over"
-
-继续:
-当前: ["fox", "jumps", "over"] → {"the": 4, "a": 2}
-预测: "the"
-
-草稿序列: ["jumps", "over", "the"]
+```mermaid
+graph TD
+    subgraph 历史序列["历史序列: [..., 'The', 'quick', 'brown', 'fox']"]
+    end
+    
+    subgraph Ngram模型["N-gram模型 (N=4)"]
+        entry1["Key: ['The', 'quick', 'brown']<br/>Value: {'fox': 5, 'cat': 2, 'dog': 1}"]
+        entry2["Key: ['quick', 'brown', 'fox']<br/>Value: {'jumps': 6, 'runs': 2}"]
+    end
+    
+    subgraph 预测过程["预测过程"]
+        p1["当前: ['quick', 'brown', 'fox'] + 'jumps'"]
+        p2["查表: ['brown', 'fox', 'jumps'] → {'over': 5, 'high': 1}"]
+        p3["预测: 'over'"]
+        p4["继续: ['fox', 'jumps', 'over'] → {'the': 4, 'a': 2}"]
+        p5["预测: 'the'"]
+        result["草稿序列: ['jumps', 'over', 'the']"]
+        
+        p1 --> p2 --> p3 --> p4 --> p5 --> result
+    end
 ```
 
 N-gram投机的优势：
@@ -284,12 +279,11 @@ N-gram投机的优势：
 前瞻解码基于Jacobi迭代方法，打破传统自回归的串行限制，并行验证多个未来位置的token。
 
 **对比**：
-```
-传统自回归:  x_1 → x_2 → x_3 → x_4 → ... (串行，每步依赖前一步)
-Jacobi迭代:  同时猜测 x_1, x_2, x_3, x_4
-             并行验证并修正
-             直到收敛
-```
+
+| 方式 | 特点 |
+|------|------|
+| 传统自回归 | x_1 → x_2 → x_3 → x_4 → ... (串行，每步依赖前一步) |
+| Jacobi迭代 | 同时猜测 x_1, x_2, x_3, x_4，并行验证并修正，直到收敛 |
 
 **关键参数**：
 - `W`（窗口大小）：并行的Jacobi迭代数
@@ -346,27 +340,45 @@ while (true) {
 ```
 
 **前瞻解码批处理结构图解**（W=5, N=4, G=2）：
+
+```mermaid
+graph LR
+    subgraph 位置["位置"]
+        p0["0"] --- p1["1"] --- p2["2"] --- p3["3"] --- p4["4"] --- p5["5"] --- p6["6"] --- p7["7"] --- p8["8"] --- p9["9"]
+    end
+    
+    subgraph Token["Token"]
+        t0["I"] --- t1["L"] --- t2["L"] --- t3["L"] --- t4["L"] --- t5["L"] --- t6["V"] --- t7["V"] --- t8["V"] --- t9["V"]
+    end
+    
+    subgraph 序列["序列"]
+        s0["0"] --- s1["1"] --- s2["2"] --- s3["3"] --- s4["4"] --- s5["5"] --- s6["6"] --- s7["7"] --- s8["8"] --- s9["9"]
+    end
+    
+    subgraph Jacobi前瞻["Jacobi前瞻"]
+        j1["序列1-5: 每级一个，共W个"]
+    end
+    
+    subgraph 验证Ngram["验证N-gram"]
+        v1["序列6-7: 共G组，每组N-1个token"]
+    end
+    
+    style t0 fill:#90EE90
+    style t1 fill:#FFB6C1
+    style t2 fill:#FFB6C1
+    style t3 fill:#FFB6C1
+    style t4 fill:#FFB6C1
+    style t5 fill:#FFB6C1
+    style t6 fill:#87CEEB
+    style t7 fill:#87CEEB
+    style t8 fill:#87CEEB
+    style t9 fill:#87CEEB
 ```
-批处理中的序列布局:
 
-位置:    0    1    2    3    4    5    6    7    8    9
-Token:   I    L    L    L    L    L    V    V    V    V
-         │    │    │    │    │    │    │    │    │    │
-序列:    0    1    2    3    4    5    6    7    8    9
-         │    └────┴────┴────┴────┘    └────┴────┘
-         │         Jacobi前瞻            验证N-gram
-         └──────────────────────────────────────────
-                    所有序列共享
-
-序列说明:
-- 序列0: 主序列（当前输入位置）
-- 序列1-5: Jacobi前瞻序列（每级一个，共W个）
-- 序列6-7: 验证N-gram序列（共G组，每组N-1个token）
-
-I = 输入token
-L = Jacobi前瞻token  
-V = 验证N-gram的token
-```
+**说明**：
+- I = 输入token (序列0: 主序列)
+- L = Jacobi前瞻token (序列1-5)
+- V = 验证N-gram的token (序列6-7)
 
 ### 18.2.3 验证与接受
 

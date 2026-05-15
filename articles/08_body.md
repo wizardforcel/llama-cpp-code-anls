@@ -277,31 +277,18 @@ llama.cpp选择虚函数抽象接口的原因是：
 
 **整体结构**：
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    GGUF 文件                         │
-├─────────────────────────────────────────────────────┤
-│  Header (固定大小，24 字节)                           │
-│  - Magic (4 字节): "GGUF"                            │
-│  - Version (4 字节): 文件格式版本                      │
-│  - tensor_count (8 字节): 张量数量                    │
-│  - metadata_kv_count (8 字节): 元数据项数              │
-├─────────────────────────────────────────────────────┤
-│  Tensor Info (变长，每个张量一个条目)                  │
-│  - 名称长度 + 名称                                    │
-│  - 维度数 + 维度数组                                   │
-│  - 类型 + 偏移量                                      │
-├─────────────────────────────────────────────────────┤
-│  Alignment Padding (0-255 字节填充)                   │
-│  - 对齐到 256 字节边界                                 │
-├─────────────────────────────────────────────────────┤
-│  Tensor Data (数据区)                                │
-│  - 实际的权重数据                                     │
-│  - 按 Tensor Info 中的偏移量存放                        │
-├─────────────────────────────────────────────────────┤
-│  Metadata K-V (键值对区)                             │
-│  - 模型参数、特殊 token、版本信息等                     │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph GGUF文件["GGUF 文件"]
+        direction TB
+        Header["Header<br/>固定大小，24 字节<br/>- Magic (4 字节): 'GGUF'<br/>- Version (4 字节): 文件格式版本<br/>- tensor_count (8 字节): 张量数量<br/>- metadata_kv_count (8 字节): 元数据项数"]
+        TensorInfo["Tensor Info<br/>变长，每个张量一个条目<br/>- 名称长度 + 名称<br/>- 维度数 + 维度数组<br/>- 类型 + 偏移量"]
+        Padding["Alignment Padding<br/>0-255 字节填充<br/>对齐到 256 字节边界"]
+        TensorData["Tensor Data<br/>数据区<br/>- 实际的权重数据<br/>- 按 Tensor Info 中的偏移量存放"]
+        Metadata["Metadata K-V<br/>键值对区<br/>- 模型参数、特殊 token、版本信息等"]
+        
+        Header --> TensorInfo --> Padding --> TensorData --> Metadata
+    end
 ```
 
 ### 8.1.3 Header 解析

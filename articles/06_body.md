@@ -436,25 +436,35 @@ void ggml_backend_sched_alloc_splits(
 ### 6.4.2 CPU-GPU 协作模式
 
 **场景 1：纯 GPU 执行**
-```
-输入 -> [GPU] -> 算子1 -> 算子2 -> 算子3 -> 输出
-         ↑ 所有计算在 GPU 完成
+
+```mermaid
+graph LR
+    输入 --> GPU["GPU"] --> 算子1 --> 算子2 --> 算子3 --> 输出
+    style GPU fill:#90EE90
 ```
 
 **场景 2：混合执行**
-```
-输入 -> [GPU] -> 矩阵乘 -> [CPU] -> 特殊算子 -> [GPU] -> 输出
-         ↑ 大部分计算      ↑ CPU 更适合某些算子（如复杂控制流）
+
+```mermaid
+graph LR
+    输入 --> GPU1["GPU"] --> 矩阵乘 --> CPU["CPU"] --> 特殊算子 --> GPU2["GPU"] --> 输出
+    style GPU1 fill:#90EE90
+    style GPU2 fill:#90EE90
+    style CPU fill:#FFB6C1
 ```
 
 **场景 3：模型分层（最常用）**
-```
-模型有 40 层，设置 n_gpu_layers=35
 
-Layer 0-34: 在 GPU 执行（速度快）
-Layer 35-39: 在 CPU 执行（显存不足时的折中）
-
-优势：灵活平衡速度和显存占用
+```mermaid
+graph LR
+    subgraph 模型40层["模型有 40 层，设置 n_gpu_layers=35"]
+        direction LR
+        gpu_layers["Layer 0-34<br/>在 GPU 执行（速度快）"] --> cpu_layers["Layer 35-39<br/>在 CPU 执行（显存不足时的折中）"]
+        style gpu_layers fill:#90EE90
+        style cpu_layers fill:#FFB6C1
+    end
+    
+    note["优势：灵活平衡速度和显存占用"]
 ```
 
 ---
@@ -483,12 +493,12 @@ Layer 35-39: 在 CPU 执行（显存不足时的折中）
 3. **内存分配开销**：GPU 显存管理成本
 
 **决策阈值**：
-```
-if (算子计算量 > GPU 开销 + 数据传输开销) {
-    使用 GPU
-} else {
-    使用 CPU（避免来回传输的开销）
-}
+
+```mermaid
+graph TD
+    A["开始"] --> B{"算子计算量 > GPU 开销 + 数据传输开销?"}
+    B -->|是| C["使用 GPU"]
+    B -->|否| D["使用 CPU<br/>避免来回传输的开销"]
 ```
 
 **实际策略**：

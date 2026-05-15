@@ -68,28 +68,23 @@ W_new = W_original + ΔW
 ```
 
 **图解LoRA分解**：
-```
-原始权重矩阵 W (d×k):
-┌─────────────────────────────┐
-│                             │
-│        d × k 参数           │
-│      (约1600万参数)          │
-│                             │
-└─────────────────────────────┘
 
-LoRA分解:
-                    ┌─────────┐
-┌─────────┐        │   A     │
-│    B    │   ×    │  (r×k)  │
-│  (d×r)  │        └─────────┘
-└─────────┘              ↓
-                    低秩矩阵
-                    
-总参数: d×r + r×k = r×(d+k)
-
-当 r=16, d=4096, k=4096:
-原始: 16,777,216 参数
-LoRA: 131,072 参数 (0.78%)
+```mermaid
+graph TD
+    subgraph 原始权重["原始权重矩阵 W (d×k)"]
+        w["d × k 参数<br/>(约1600万参数)"]
+    end
+    
+    subgraph LoRA分解["LoRA分解"]
+        B["B<br/>(d×r)"] --> mul["×"]
+        A["A<br/>(r×k)"] --> mul
+        mul --> low_rank["低秩矩阵"]
+    end
+    
+    subgraph 参数对比["参数对比"]
+        p1["总参数: d×r + r×k = r×(d+k)"]
+        p2["当 r=16, d=4096, k=4096:<br/>原始: 16,777,216 参数<br/>LoRA: 131,072 参数 (0.78%)"]
+    end
 ```
 
 这种分解的直觉是：模型权重的更新往往是低秩的。与其学习完整的更新矩阵，不如学习两个小的投影矩阵，它们的乘积近似于所需的更新。
@@ -128,24 +123,17 @@ LoRA分支:
 ```
 
 **图解计算图**：
-```
-        ┌─────────────┐
-  x ───→│    W        │────┐
-        │  (原始权重)  │    │
-        └─────────────┘    │    ┌─────────┐
-                           ├───→│   Add   │──→ output
-        ┌─────────────┐    │    └─────────┘
-  x ───→│     A       │──┐ │
-        │   (r×k)     │  │ │
-        └─────────────┘  │ │
-                       ┌─┘ │
-                       ↓   │
-        ┌─────────────┐    │
-        │     B       │────┘
-        │   (d×r)     │
-        └─────────────┘
-              │
-              ↓ scale (alpha / rank)
+
+```mermaid
+graph LR
+    x["x"] --> W["W<br/>(原始权重)"]
+    W --> add["Add"]
+    add --> output["output"]
+    
+    x --> A["A<br/>(r×k)"]
+    A --> B["B<br/>(d×r)"]
+    B --> scale["scale<br/>(alpha / rank)"]
+    scale --> add
 ```
 
 **为什么有效？**
@@ -200,30 +188,22 @@ static void llama_adapter_lora_init_impl(
 ```
 
 **GGUF LoRA文件结构**：
-```
-GGUF LoRA文件:
-├── Header
-│   ├── magic: 'GGUF'
-│   ├── version: 3
-│   └── tensor_count: N
-│
-├── Metadata
-│   ├── general.type = "adapter"
-│   ├── general.architecture = "llama"
-│   ├── adapter.type = "lora"
-│   ├── adapter.lora.alpha = 16.0
-│   └── adapter.lora.scale = 1.0
-│
-├── Tensor Info
-│   ├── tok_embeddings.lora_a (shape: [r, vocab])
-│   ├── tok_embeddings.lora_b (shape: [dim, r])
-│   ├── layers.0.attention.wq.lora_a (shape: [r, dim])
-│   ├── layers.0.attention.wq.lora_b (shape: [dim, r])
-│   ├── layers.0.feed_forward.w1.lora_a (shape: [r, dim])
-│   └── ... (每个目标张量对应一对lora_a/lora_b)
-│
-└── Tensor Data
-    └── 原始二进制数据
+
+```mermaid
+graph TD
+    subgraph GGUF_LoRA["GGUF LoRA文件"]
+        direction TB
+        
+        Header["Header<br/>- magic: 'GGUF'<br/>- version: 3<br/>- tensor_count: N"]
+        
+        Metadata["Metadata<br/>- general.type = 'adapter'<br/>- general.architecture = 'llama'<br/>- adapter.type = 'lora'<br/>- adapter.lora.alpha = 16.0<br/>- adapter.lora.scale = 1.0"]
+        
+        TensorInfo["Tensor Info<br/>- tok_embeddings.lora_a (shape: [r, vocab])<br/>- tok_embeddings.lora_b (shape: [dim, r])<br/>- layers.0.attention.wq.lora_a (shape: [r, dim])<br/>- layers.0.attention.wq.lora_b (shape: [dim, r])<br/>- ... (每个目标张量对应一对lora_a/lora_b)"]
+        
+        TensorData["Tensor Data<br/>- 原始二进制数据"]
+        
+        Header --> Metadata --> TensorInfo --> TensorData
+    end
 ```
 
 ### 19.2.2 权重映射与配对
@@ -347,32 +327,35 @@ llama_adapter_lora_weight * llama_adapter_lora::get_weight(ggml_tensor * w) {
 ### 19.3.2 计算图构建时的适配器集成
 
 **图解适配器集成到Transformer层**：
-```
-标准Transformer层前向传播:
-┌─────────────────────────────────────────────┐
-│  Input x                                    │
-│     ↓                                       │
-│  RMSNorm                                    │
-│     ↓                                       │
-│  Attention                                  │
-│    ├── wq (with LoRA: wq + B_q×A_q×scale)  │
-│    ├── wk (with LoRA: wk + B_k×A_k×scale)  │
-│    ├── wv (with LoRA: wv + B_v×A_v×scale)  │
-│    └── wo (with LoRA: wo + B_o×A_o×scale)  │
-│     ↓                                       │
-│  Residual Connection                        │
-│     ↓                                       │
-│  RMSNorm                                    │
-│     ↓                                       │
-│  FFN                                        │
-│    ├── w1 (with LoRA: w1 + B_1×A_1×scale)  │
-│    ├── w2 (with LoRA: w2 + B_2×A_2×scale)  │
-│    └── w3 (with LoRA: w3 + B_3×A_3×scale)  │
-│     ↓                                       │
-│  Residual Connection                        │
-│     ↓                                       │
-│  Output                                     │
-└─────────────────────────────────────────────┘
+
+```mermaid
+graph TD
+    subgraph Transformer层["标准Transformer层前向传播"]
+        direction TB
+        
+        input["Input x"] --> rms1["RMSNorm"]
+        rms1 --> attn["Attention"]
+        
+        subgraph 注意力层["Attention"]
+            wq["wq<br/>(with LoRA: wq + B_q×A_q×scale)"]
+            wk["wk<br/>(with LoRA: wk + B_k×A_k×scale)"]
+            wv["wv<br/>(with LoRA: wv + B_v×A_v×scale)"]
+            wo["wo<br/>(with LoRA: wo + B_o×A_o×scale)"]
+        end
+        
+        attn --> residual1["Residual Connection"]
+        residual1 --> rms2["RMSNorm"]
+        rms2 --> ffn["FFN"]
+        
+        subgraph FFN层["FFN"]
+            w1["w1<br/>(with LoRA: w1 + B_1×A_1×scale)"]
+            w2["w2<br/>(with LoRA: w2 + B_2×A_2×scale)"]
+            w3["w3<br/>(with LoRA: w3 + B_3×A_3×scale)"]
+        end
+        
+        ffn --> residual2["Residual Connection"]
+        residual2 --> output["Output"]
+    end
 ```
 
 在llama.cpp的计算图构建中，当遇到有LoRA适配的权重时，会插入LoRA分支的计算节点。
